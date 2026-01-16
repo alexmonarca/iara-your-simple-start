@@ -1,5 +1,6 @@
 // Update v1.719
 import React, { useState, useEffect, useRef } from 'react';
+import AdminTrialPanel from './components/admin/AdminTrialPanel.jsx';
 import { 
   Dumbbell, MessageSquare, Settings, LayoutDashboard, Save, CreditCard, 
   LogOut, User, CheckCircle2, BrainCircuit, Smartphone, QrCode, 
@@ -290,25 +291,41 @@ const OnboardingChecklist = ({ gymData, connectionStatus, planType, goToPlans, o
   );
 };
 
-const TrialTimer = ({ createdAt, onExpire }) => {
+const TrialTimer = ({ endsAt, onExpire }) => {
     const [timeLeft, setTimeLeft] = useState("");
+
     useEffect(() => {
-        if (!createdAt) return;
+        if (!endsAt) return;
+
+        const endDate = new Date(endsAt);
+        if (Number.isNaN(endDate.getTime())) return;
+
         const interval = setInterval(() => {
-            const createdDate = new Date(createdAt);
             const now = new Date();
-            const limitDate = new Date(createdDate.getTime() + (TRIAL_HOURS * 60 * 60 * 1000)); 
-            const diff = limitDate - now;
-            if (diff <= 0) { setTimeLeft("Expirado"); clearInterval(interval); if (onExpire) onExpire(); } else {
-                const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-                const minutes = Math.floor((diff / (1000 * 60)) % 60);
-                const seconds = Math.floor((diff / 1000) % 60);
-                const totalDays = Math.floor(diff / (1000 * 60 * 60 * 24));
-                if (totalDays > 0) { setTimeLeft(`${totalDays}d ${hours}h ${minutes}m`); } else { setTimeLeft(`${hours}h ${minutes}m ${seconds}s`); }
+            const diff = endDate - now;
+
+            if (diff <= 0) {
+                setTimeLeft("Expirado");
+                clearInterval(interval);
+                if (onExpire) onExpire();
+                return;
+            }
+
+            const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((diff / (1000 * 60)) % 60);
+            const seconds = Math.floor((diff / 1000) % 60);
+            const totalDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+            if (totalDays > 0) {
+                setTimeLeft(`${totalDays}d ${hours}h ${minutes}m`);
+            } else {
+                setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
             }
         }, 1000);
+
         return () => clearInterval(interval);
-    }, [createdAt, onExpire]);
+    }, [endsAt, onExpire]);
+
     return <span className="font-mono font-bold text-orange-400">{timeLeft}</span>;
 };
 
@@ -352,7 +369,7 @@ function Dashboard({ session }) {
   const [connectionStep, setConnectionStep] = useState('disconnected'); 
   const [connectionStatus, setConnectionStatus] = useState('disconnected'); 
   const [instanceCode, setInstanceCode] = useState('');
-  const [trialInfo, setTrialInfo] = useState({ hoursLeft: 48, status: 'active' });
+  const [trialInfo, setTrialInfo] = useState({ hoursLeft: 48, status: 'active', endsAt: null, source: 'default' });
   const [subscriptionInfo, setSubscriptionInfo] = useState({ plan_type: 'trial_7_days', status: 'active' });
   const [extraChannels, setExtraChannels] = useState(0);
   const [logs, setLogs] = useState([]);
@@ -519,7 +536,69 @@ function Dashboard({ session }) {
   useEffect(() => { let interval; if (((activeTab === 'dashboard' && connectionStatus !== 'connected') || isQrModalOpen) && !isQrGenerating) { interval = setInterval(() => checkEvolutionStatus(), 5000); } return () => clearInterval(interval); }, [activeTab, connectionStatus, isQrModalOpen, isQrGenerating, instanceName]);
   const createInstanceOnSave = async () => { try { fetch(WEBHOOK_EVOLUTION_URL, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', instanceName: instanceName, webhook_url: WEBHOOK_SALES_URL }) }).catch(() => {}); } catch (e) { } };
   
-  useEffect(() => { if (session.user.created_at) { const createdDate = new Date(session.user.created_at); const now = new Date(); const diffMs = Math.abs(now - createdDate); const diffHours = Math.ceil(diffMs / (1000 * 60 * 60)); const remaining = TRIAL_HOURS - diffHours; setTrialInfo({ hoursLeft: Math.max(0, remaining), status: remaining > 0 ? 'active' : 'expired' }); } }, [session.user.created_at]);
+  useEffect(() => {
+    let cancelled = false;
+
+    const computeDefaultTrial = () => {
+      if (!session.user.created_at) return;
+      const createdDate = new Date(session.user.created_at);
+      const endsAt = new Date(createdDate.getTime() + (TRIAL_HOURS * 60 * 60 * 1000));
+      const now = new Date();
+      const remainingHours = Math.max(0, Math.ceil((endsAt - now) / (1000 * 60 * 60)));
+
+      setTrialInfo({
+        hoursLeft: remainingHours,
+        status: remainingHours > 0 ? 'active' : 'expired',
+        endsAt: endsAt.toISOString(),
+        source: 'default',
+      });
+    };
+
+    const loadCustomTrialIfAny = async () => {
+      try {
+        if (!supabaseClient || !userId) {
+          computeDefaultTrial();
+          return;
+        }
+
+        const { data, error } = await supabaseClient
+          .from('user_trial_settings')
+          .select('trial_days, trial_start_date')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data?.trial_days && data?.trial_start_date) {
+          const start = new Date(data.trial_start_date);
+          const endsAt = new Date(start.getTime() + (Number(data.trial_days) * 24 * 60 * 60 * 1000));
+          const now = new Date();
+          const remainingHours = Math.max(0, Math.ceil((endsAt - now) / (1000 * 60 * 60)));
+
+          if (!cancelled) {
+            setTrialInfo({
+              hoursLeft: remainingHours,
+              status: remainingHours > 0 ? 'active' : 'expired',
+              endsAt: endsAt.toISOString(),
+              source: 'custom',
+            });
+          }
+          return;
+        }
+
+        computeDefaultTrial();
+      } catch (_e) {
+        // Se falhar por qualquer motivo, cai no padrão
+        computeDefaultTrial();
+      }
+    };
+
+    loadCustomTrialIfAny();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session.user.created_at, userId]);
   
   useEffect(() => { 
       const fetchData = async () => { 
@@ -700,8 +779,8 @@ function Dashboard({ session }) {
                     {(!isSubscriptionActive(subscriptionInfo.status) || subscriptionInfo.plan_type === 'trial_7_days') ? (
                         <div className="flex items-center gap-2 mt-1 text-xs text-orange-400 font-bold">
                              <Clock className="w-3 h-3" /> 
-                             <TrialTimer createdAt={session.user.created_at} onExpire={handleTrialExpired} />
-                             <span className="text-gray-500 font-normal">- Seu plano é Grátis!</span>
+                             <TrialTimer endsAt={trialInfo.endsAt} onExpire={handleTrialExpired} />
+                             <span className="text-gray-500 font-normal">- Seu plano é Grátis{trialInfo.source === 'custom' ? ' (trial customizado)' : ''}!</span>
                         </div>
                     ) : (
                         <p className="text-xs text-green-400 font-bold mt-1 flex items-center gap-1"><Star className="w-3 h-3" fill="currentColor" /> Assinatura Ativa</p>
@@ -872,7 +951,25 @@ function Dashboard({ session }) {
       </Button>
       </div><div className="bg-gray-800 border border-gray-700 rounded-2xl p-8"><h3 className="text-xl font-semibold text-white mb-6">Adicionais</h3><div className="space-y-4"><div className="bg-gray-900 p-4 rounded-xl border border-blue-900/50 flex justify-between items-center"><div><div className="flex items-center gap-2 text-blue-200 font-medium mb-1"><LayoutList className="w-4 h-4" /> Painel Omnichannel</div><p className="text-xs text-gray-500">Gestão centralizada</p></div><div className="flex items-center gap-3"><span className="text-xs text-gray-400">R$ 150</span><input type="checkbox" checked={gymData.omnichannel} onChange={() => setGymData(prev => ({...prev, omnichannel: !prev.omnichannel}))} className="w-5 h-5 accent-blue-500 rounded cursor-pointer" /></div></div><div className="bg-gray-900 p-4 rounded-xl border border-purple-900/50 flex justify-between items-center"><div><div className="flex items-center gap-2 text-purple-200 font-medium mb-1"><ImageIcon className="w-4 h-4" /> IA Gestor de Mídias</div><p className="text-xs text-gray-500">30 créditos mensais</p></div><div className="flex items-center gap-3"><span className="text-xs text-gray-400">R$ 250</span><input type="checkbox" checked={gymData.ia_gestor_midias} onChange={() => setGymData(prev => ({...prev, ia_gestor_midias: !prev.ia_gestor_midias}))} className="w-5 h-5 accent-purple-500 rounded cursor-pointer" /></div></div><div className="bg-gray-900 p-4 rounded-xl border border-gray-700"><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2 text-gray-200 font-medium"><Instagram className="w-5 h-5 text-pink-500" /><Smartphone className="w-5 h-5 text-green-500" /><span>Canais Extras</span></div><div className="flex items-center gap-3"><button onClick={() => setExtraChannels(Math.max(0, extraChannels - 1))} className="w-8 h-8 flex items-center justify-center bg-gray-800 border border-gray-600 rounded">-</button><span className="text-white font-bold w-4 text-center">{extraChannels}</span><button onClick={() => setExtraChannels(extraChannels + 1)} className="w-8 h-8 flex items-center justify-center bg-gray-800 border border-gray-600 rounded">+</button></div></div><p className="text-xs text-gray-500 text-right mb-4">+ R$ 50/cada</p></div><div className="bg-gray-900 p-4 rounded-xl border border-gray-700"><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2 text-gray-200 font-medium"><Users className="w-5 h-5 text-purple-500" /><span>Usuários Painel</span></div><div className="flex items-center gap-3"><button onClick={() => setGymData(prev => ({...prev, extra_users_count: Math.max(0, prev.extra_users_count - 1)}))} className="w-8 h-8 flex items-center justify-center bg-gray-800 border border-gray-600 rounded">-</button><span className="text-white font-bold w-4 text-center">{gymData.extra_users_count}</span><button onClick={() => setGymData(prev => ({...prev, extra_users_count: prev.extra_users_count + 1}))} className="w-8 h-8 flex items-center justify-center bg-gray-800 border border-gray-600 rounded">+</button></div></div><p className="text-xs text-gray-500 text-right mb-4">+ R$ 50/usuário</p></div></div></div></div></div>;
       case 'account': return <div className="max-w-2xl mx-auto text-center pt-10 animate-in fade-in"><div className="relative group w-24 h-24 mx-auto mb-6">{gymData.logo_url || gymData.gym_name ? ( gymData.logo_url ? <img src={gymData.logo_url} alt="Logo" className="w-full h-full rounded-full object-cover border-2 border-orange-500" /> : <div className="w-full h-full bg-gray-800 rounded-full flex items-center justify-center border-2 border-orange-500 text-2xl font-bold text-orange-500">{gymData.gym_name.slice(0,2).toUpperCase()}</div>) : ( <div className="w-full h-full bg-gray-800 rounded-full flex items-center justify-center border-2 border-dashed border-gray-600 group-hover:border-orange-500 transition-colors cursor-pointer"><Upload className="w-8 h-8 text-gray-500 group-hover:text-orange-500" /></div> )}<input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleLogoUpload} accept="image/*" /><div className="absolute bottom-0 right-0 bg-orange-500 rounded-full p-1"><Plus className="w-4 h-4 text-white" /></div></div><h2 className="text-2xl font-bold text-white mb-1">Minha Conta</h2><div className="bg-gray-800 p-6 rounded-xl border border-gray-700 text-left mb-8 shadow-lg"><h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2"><User className="w-5 h-5 text-orange-400"/> Dados de Acesso</h3><div className="space-y-4"><InputGroup label="Email de Login" value={gymData.email} disabled /><InputGroup label="Alterar Senha" type="password" placeholder="Nova senha..." value={gymData.password} onChange={(e) => setGymData({...gymData, password: e.target.value})} /><div className="bg-red-500/10 border border-red-500/20 p-3 rounded text-xs text-red-200 flex gap-2 items-start"><ShieldAlert className="w-4 h-4 mt-0.5 flex-shrink-0" /><div><span className="font-bold block mb-1">Atenção:</span>Mudanças aqui não refletem na conta de pagamentos (Ambiente Seguro Hotmart).</div></div><div className="flex justify-end"><Button variant="secondary" className="text-sm">Atualizar Acesso</Button></div></div></div><div className="bg-gray-800 p-6 rounded-xl border border-gray-700 text-left mb-8 shadow-lg"><h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2"><CreditCard className="w-5 h-5 text-green-400"/> Financeiro</h3><Button className="w-full py-3" variant="outline" onClick={() => window.open('https://consumer.hotmart.com/main', '_blank')}>Acessar Ambiente Seguro Hotmart <ExternalLink className="w-4 h-4" /></Button></div><Button onClick={async () => { await supabaseClient.auth.signOut(); window.location.reload(); }} variant="danger" className="mx-auto">Sair da Conta</Button></div>;
-      case 'admin': return <div className="max-w-4xl mx-auto animate-in fade-in duration-500"><div className="bg-purple-900/20 border border-purple-500/30 p-6 rounded-xl mb-8"><h2 className="text-2xl font-bold text-purple-300 flex items-center gap-2 mb-2"><ShieldAlert className="w-8 h-8" /> Modo Deus (Admin)</h2><p className="text-gray-400">Área restrita da Monarca Hub.</p></div><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><Card title="Controle de Conexão"><div className="flex gap-2"><Button variant="success" onClick={() => setConnectionStep('connected')} className="flex-1">Forçar Online</Button><Button variant="danger" onClick={() => {setConnectionStep('disconnected'); setInstanceCode('')}} className="flex-1">Forçar Logout</Button></div></Card></div></div>;
+      case 'admin':
+        return (
+          <div className="max-w-5xl mx-auto animate-in fade-in duration-500">
+            <div className="bg-purple-900/20 border border-purple-500/30 p-6 rounded-xl mb-8">
+              <h2 className="text-2xl font-bold text-purple-300 flex items-center gap-2 mb-2">
+                <ShieldAlert className="w-8 h-8" /> Modo Deus (Admin)
+              </h2>
+              <p className="text-gray-400">Área restrita da Monarca Hub.</p>
+            </div>
+
+            {isSuperAdmin ? (
+              <AdminTrialPanel supabaseClient={supabaseClient} adminEmail={session.user.email} />
+            ) : (
+              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-lg text-sm text-red-200">
+                Acesso negado.
+              </div>
+            )}
+          </div>
+        );
       default: return null;
     }
   };
