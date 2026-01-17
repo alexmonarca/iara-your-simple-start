@@ -1,7 +1,6 @@
 // Update v1.719
 import React, { useState, useEffect, useRef } from 'react';
 import AdminTrialPanel from './components/admin/AdminTrialPanel.jsx';
-import TrialBanner from './components/trial/TrialBanner.jsx';
 import { supabase as supabaseClient } from '@/lib/supabaseClient';
 import { env } from '@/config/env';
 import { 
@@ -782,29 +781,25 @@ function Dashboard({ session }) {
                 openVideo={() => setIsVideoModalOpen(true)}
                 setOnboardingDiscount={setOnboardingDiscount} // Passa o setter
             />
-            {(subscriptionInfo.plan_type === 'trial_7_days' || !isSubscriptionActive(subscriptionInfo.status)) ? (
-              <TrialBanner
-                planName={displayPlanName}
-                endsAt={trialInfo.endsAt}
-                onExpire={handleTrialExpired}
-                isExpired={isTrialExpired}
-                trialSource={trialInfo.source}
-                supportWhatsApp={WHATSAPP_SALES_NUMBER}
-              />
-            ) : (
-              <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-lg flex justify-between items-center">
+            
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-lg flex justify-between items-center">
                 <div>
-                  <p className="text-gray-400 text-sm font-medium">Plano Atual</p>
-                  <h2 className="text-3xl font-bold text-white mt-1">{displayPlanName}</h2>
-                  <p className="text-xs text-green-400 font-bold mt-1 flex items-center gap-1">
-                    <Star className="w-3 h-3" fill="currentColor" /> Assinatura Ativa
-                  </p>
+                    <p className="text-gray-400 text-sm font-medium">Plano Atual</p>
+                    <h2 className="text-3xl font-bold text-white mt-1">
+                        {displayPlanName}
+                    </h2>
+                    {(!isSubscriptionActive(subscriptionInfo.status) || subscriptionInfo.plan_type === 'trial_7_days') ? (
+                        <div className="flex items-center gap-2 mt-1 text-xs text-orange-400 font-bold">
+                             <Clock className="w-3 h-3" /> 
+                             <TrialTimer endsAt={trialInfo.endsAt} onExpire={handleTrialExpired} />
+                             <span className="text-gray-500 font-normal">- Seu plano é Grátis{trialInfo.source === 'custom' ? ' (trial customizado)' : ''}!</span>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-green-400 font-bold mt-1 flex items-center gap-1"><Star className="w-3 h-3" fill="currentColor" /> Assinatura Ativa</p>
+                    )}
                 </div>
-                <div className="bg-gray-700 p-3 rounded-lg">
-                  <CreditCard className="w-8 h-8 text-orange-400" />
-                </div>
-              </div>
-            )}
+                <div className="bg-gray-700 p-3 rounded-lg"><CreditCard className="w-8 h-8 text-orange-400" /></div>
+            </div>
             
             <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-lg relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-5"><Smartphone className="w-32 h-32 text-orange-400" /></div>
