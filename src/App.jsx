@@ -1,6 +1,8 @@
 // Update v1.719
 import React, { useState, useEffect, useRef } from 'react';
 import AdminTrialPanel from './components/admin/AdminTrialPanel.jsx';
+import { supabase as supabaseClient } from '@/lib/supabaseClient';
+import { env } from '@/config/env';
 import { 
   Dumbbell, MessageSquare, Settings, LayoutDashboard, Save, CreditCard, 
   LogOut, User, CheckCircle2, BrainCircuit, Smartphone, QrCode, 
@@ -12,60 +14,33 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// ⚠️ CONFIGURAÇÃO OBRIGATÓRIA (PREENCHA AQUI)
+// ⚙️ CONFIG (migre para env no Vercel)
 // ==========================================
-const SUPABASE_URL = "https://wjyrinydwrazuzjczhbw.supabase.co"; 
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqeXJpbnlkd3JhenV6amN6aGJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0OTA3MTAsImV4cCI6MjA3OTA2NjcxMH0.lx5gKNPJLBfBouwH99MFFYHtjvxDZeohwoJr9JlSblg"; 
-const SUPER_ADMIN_EMAIL = "noreply@monarcahub.com"; 
+const SUPER_ADMIN_EMAIL = "noreply@monarcahub.com";
 
 // DURAÇÃO DO TRIAL EM HORAS
-const TRIAL_HOURS = 48; 
+const TRIAL_HOURS = 48;
 
 // Link do Vídeo Tutorial
 const TUTORIAL_VIDEO_ID = "2rgyPJzZXQg";
 
 // Webhooks do n8n
-const WEBHOOK_SALES_URL = "https://webhook.monarcahub.com/webhook/assinar"; 
-const WEBHOOK_EVOLUTION_URL = "https://webhook.monarcahub.com/webhook/evolution-manager"; 
-const WEBHOOK_QR_HTML_URL = "https://webhook.monarcahub.com/webhook/qrcode"; 
+const WEBHOOK_SALES_URL = "https://webhook.monarcahub.com/webhook/assinar";
+const WEBHOOK_EVOLUTION_URL = "https://webhook.monarcahub.com/webhook/evolution-manager";
+const WEBHOOK_QR_HTML_URL = "https://webhook.monarcahub.com/webhook/qrcode";
 const WEBHOOK_SIGNUP_SYNC_URL = "https://webhook.monarcahub.com/webhook/signup-sync";
 
 // Configurações do Chatwoot
 const CHATWOOT_BASE_URL = "https://chat.monarcahub.com";
 const CHATWOOT_TOKEN = "mQv55WtU3obZ6HpzYfyor4sn";
 
-const WHATSAPP_SALES_NUMBER = "5555996079863"; 
+const WHATSAPP_SALES_NUMBER = "5555996079863";
 
 // Configurações Meta Embedded Signup (API Oficial)
 const META_APP_ID = '1322580525486349';
 const META_CONFIG_ID = '878421224769472';
 const WEBHOOK_META_SETUP_URL = 'https://webhook.monarcahub.com/webhook/whatsapp-setup';
 
-// ==========================================
-// UTILITÁRIO: CARREGAR SUPABASE
-// ==========================================
-let supabaseClient = null;
-
-const loadSupabaseAndInit = () => {
-  return new Promise((resolve, reject) => {
-    if (window.supabase) {
-        if (!supabaseClient) supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        resolve(true);
-        return;
-    }
-    const script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-    script.async = true;
-    script.onload = () => {
-        try {
-            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            resolve(true);
-        } catch(e) { reject(new Error("Falha ao iniciar cliente Supabase.")); }
-    };
-    script.onerror = () => reject(new Error("Falha ao carregar Supabase SDK"));
-    document.head.appendChild(script);
-  });
-};
 
 // ==========================================
 // HELPERS
@@ -349,12 +324,49 @@ const AuthScreen = ({ onLogin }) => {
   );
 };
 
-export default function App() { const [session, setSession] = useState(null); const [isLibLoaded, setIsLibLoaded] = useState(false); const [isConfigured, setIsConfigured] = useState(SUPABASE_URL !== ""); 
+export default function App() {
+  const [session, setSession] = useState(null);
+
+  // Para deploy (Vercel), usamos o SDK via npm (sem carregar via <script>), então já está disponível.
+  const isConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);
+
   // Script FB SDK e Chatwoot
   useEffect(() => {
-    (function(d,t) { var g=d.createElement(t),s=d.getElementsByTagName(t)[0]; g.src=CHATWOOT_BASE_URL+"/packs/js/sdk.js"; g.defer = true; g.async = true; s.parentNode.insertBefore(g,s); g.onload=function(){ if(window.chatwootSDK) { window.chatwootSDK.run({ websiteToken: CHATWOOT_TOKEN, baseUrl: CHATWOOT_BASE_URL }); } } })(document,"script");
+    (function(d,t) {
+      var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+      g.src=CHATWOOT_BASE_URL+"/packs/js/sdk.js";
+      g.defer = true;
+      g.async = true;
+      s.parentNode.insertBefore(g,s);
+      g.onload=function(){
+        if(window.chatwootSDK) {
+          window.chatwootSDK.run({ websiteToken: CHATWOOT_TOKEN, baseUrl: CHATWOOT_BASE_URL });
+        }
+      }
+    })(document,"script");
   }, []);
-  useEffect(() => { if (!isConfigured) return; loadSupabaseAndInit().then(() => setIsLibLoaded(true)).catch(console.error); }, [isConfigured]); useEffect(() => { if (!isLibLoaded || !isConfigured || !supabaseClient) return; const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => setSession(session)); supabaseClient.auth.getSession().then(({ data: { session } }) => setSession(session)); return () => subscription.unsubscribe(); }, [isLibLoaded, isConfigured]); if (!isConfigured) return <div className="min-h-screen bg-gray-950 flex items-center justify-center flex-col text-white p-6 text-center"><ShieldAlert className="w-10 h-10 text-red-400 mb-4" /><h1 className="text-xl font-bold mb-2">Configuração Pendente</h1><p className="text-gray-400">Configure as variáveis.</p></div>; if (!isLibLoaded) return <div className="min-h-screen bg-gray-950 flex items-center justify-center flex-col text-orange-400"><RefreshCw className="w-10 h-10 animate-spin mb-4" /><p>Conectando...</p></div>; if (!session) return <AuthScreen onLogin={(sess) => setSession(sess)} />; return <Dashboard session={session} />; }
+
+  useEffect(() => {
+    if (!isConfigured) return;
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => setSession(session));
+    supabaseClient.auth.getSession().then(({ data: { session } }) => setSession(session));
+    return () => subscription.unsubscribe();
+  }, [isConfigured]);
+
+  if (!isConfigured) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center flex-col text-white p-6 text-center">
+        <ShieldAlert className="w-10 h-10 text-red-400 mb-4" />
+        <h1 className="text-xl font-bold mb-2">Configuração Pendente</h1>
+        <p className="text-gray-400">Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no ambiente de deploy.</p>
+      </div>
+    );
+  }
+
+  if (!session) return <AuthScreen onLogin={(sess) => setSession(sess)} />;
+  return <Dashboard session={session} />;
+}
+
 
 function Dashboard({ session }) {
   const [activeTab, setActiveTab] = useState('dashboard');
