@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles, Send } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 /**
  * Primeira tela (estilo Gemini/Lovable): pergunta + input central.
@@ -18,26 +19,25 @@ export default function HomeAIStart({
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [error, setError] = useState("");
   const [conversationId, setConversationId] = useState(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    // Mantém o mesmo id durante a sessão (para o n8n correlacionar contexto, se você quiser)
-    if (!conversationId) setConversationId(crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const canSend = useMemo(
-    () => input.trim().length > 0 && !sending,
-    [input, sending]
+    () =>
+      input.trim().length > 0 &&
+      !sending &&
+      Boolean(conversationId) &&
+      Boolean(user?.id),
+    [input, sending, conversationId, user?.id]
   );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending]);
+  }, [messages, sending, loadingHistory]);
 
   const parseWebhookResponse = (rawText) => {
     // n8n às vezes devolve JSON com caracteres de controle (\n, etc). Sanitizamos.
@@ -75,6 +75,76 @@ export default function HomeAIStart({
     );
   };
 
+  const persistMessage = async ({ role, content, conversation_id }) => {
+    if (!user?.id) return;
+
+    // Observação: depende de RLS no seu Supabase permitindo INSERT/SELECT do próprio usuário.
+    const { error: insertError } = await supabase.from("chat_messages").insert({
+      conversation_id,
+      user_id: user.id,
+      role,
+      content,
+    });
+
+    if (insertError) throw insertError;
+  };
+
+  const loadHistory = async () => {
+    if (!user?.id) return;
+
+    setLoadingHistory(true);
+    setError("");
+
+    try {
+      // Pega as últimas mensagens do usuário para restaurar após F5
+      const { data, error: selectError } = await supabase
+        .from("chat_messages")
+        .select("conversation_id, role, content, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(200);
+
+      if (selectError) throw selectError;
+
+      const restored = (data ?? []).map((m) => ({
+        role: m.role,
+        content: m.content,
+        timestamp: m.created_at,
+      }));
+
+      setMessages(restored);
+
+      const lastConversationId =
+        data && data.length > 0 ? data[data.length - 1].conversation_id : null;
+
+      // Se já existe histórico, seguimos na última conversa; senão, criamos uma nova.
+      setConversationId(
+        lastConversationId ??
+          crypto?.randomUUID?.() ??
+          `${Date.now()}-${Math.random()}`
+      );
+    } catch (e) {
+      // Não travar a UI: só avisar.
+      setError(
+        e?.message ||
+          "Não foi possível carregar o histórico. Verifique as políticas (RLS) e permissões da tabela chat_messages."
+      );
+      if (!conversationId) {
+        setConversationId(crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+      }
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    // Carrega histórico assim que o usuário estiver autenticado.
+    // Evita re-carregar em cada render.
+    if (!user?.id) return;
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   const send = async () => {
     if (!canSend) return;
 
@@ -95,6 +165,13 @@ export default function HomeAIStart({
       if (!webhookUrl) {
         throw new Error("Webhook não configurado.");
       }
+
+      // 1) Salva a mensagem do usuário no seu Supabase (persistência pós-F5)
+      await persistMessage({
+        role: "user",
+        content: userText,
+        conversation_id: conversationId,
+      });
 
       const payload = {
         event: "user_message",
@@ -125,14 +202,20 @@ export default function HomeAIStart({
       const parsed = parseWebhookResponse(rawText);
       const replyText = getReplyTextFromN8n(parsed);
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: replyText,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      const assistantMessage = {
+        role: "assistant",
+        content: replyText,
+        timestamp: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      // 2) Salva resposta do agente também
+      await persistMessage({
+        role: "assistant",
+        content: replyText,
+        conversation_id: conversationId,
+      });
     } catch (e) {
       setMessages((prev) => [
         ...prev,
@@ -189,6 +272,12 @@ export default function HomeAIStart({
         <div className="rounded-3xl border border-border bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))]">
           <div className="p-4 md:p-5">
             {/* Área do chat */}
+            {loadingHistory && messages.length === 0 && (
+              <div className="mb-4 rounded-2xl px-4 py-3 text-sm border border-border bg-background/40 text-muted-foreground">
+                Carregando histórico…
+              </div>
+            )}
+
             {messages.length > 0 && (
               <div className="mb-4 max-h-[46vh] overflow-y-auto pr-1 space-y-3">
                 {messages.map((m, idx) => {
