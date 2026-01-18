@@ -1,6 +1,7 @@
 // Update v1.719
 import React, { useState, useEffect, useRef } from 'react';
 import AdminTrialPanel from './components/admin/AdminTrialPanel.jsx';
+import HomeAIStart from './components/HomeAIStart.jsx';
 import { supabase as supabaseClient } from '@/lib/supabaseClient';
 import { env } from '@/config/env';
 import { 
@@ -770,79 +771,12 @@ function Dashboard({ session }) {
     switch(activeTab) {
       case 'dashboard':
         return (
-          <div className="space-y-6 animate-in fade-in duration-500">
-            {/* CHECKLIST GAMIFICADO */}
-            <OnboardingChecklist 
-                gymData={gymData} 
-                connectionStatus={connectionStatus} 
-                extraChannels={extraChannels} 
-                planType={subscriptionInfo.plan_type} 
-                goToPlans={() => setActiveTab('plans')} 
-                openVideo={() => setIsVideoModalOpen(true)}
-                setOnboardingDiscount={setOnboardingDiscount} // Passa o setter
+          <div className="animate-in fade-in duration-500">
+            <HomeAIStart
+              user={{ id: userId, email: session?.user?.email }}
+              webhookUrl={env.n8nAiWebhookUrl}
+              onOpenTrainTab={() => setActiveTab('training')}
             />
-            
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-lg flex justify-between items-center">
-                <div>
-                    <p className="text-gray-400 text-sm font-medium">Plano Atual</p>
-                    <h2 className="text-3xl font-bold text-white mt-1">
-                        {displayPlanName}
-                    </h2>
-                    {(!isSubscriptionActive(subscriptionInfo.status) || subscriptionInfo.plan_type === 'trial_7_days') ? (
-                        <div className="flex items-center gap-2 mt-1 text-xs text-orange-400 font-bold">
-                             <Clock className="w-3 h-3" /> 
-                             <TrialTimer endsAt={trialInfo.endsAt} onExpire={handleTrialExpired} />
-                             <span className="text-gray-500 font-normal">- Seu plano é Grátis{trialInfo.source === 'custom' ? ' (trial customizado)' : ''}!</span>
-                        </div>
-                    ) : (
-                        <p className="text-xs text-green-400 font-bold mt-1 flex items-center gap-1"><Star className="w-3 h-3" fill="currentColor" /> Assinatura Ativa</p>
-                    )}
-                </div>
-                <div className="bg-gray-700 p-3 rounded-lg"><CreditCard className="w-8 h-8 text-orange-400" /></div>
-            </div>
-            
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-lg relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-5"><Smartphone className="w-32 h-32 text-orange-400" /></div>
-              <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h2 className="text-2xl font-bold text-white">Conexão do WhatsApp</h2>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 font-bold">API MonarcaHub</span>
-                  </div>
-                  <p className="text-gray-400 mb-6">Status: <span className={connectionStatus === 'connected' ? "text-green-400 font-bold" : "text-red-400 font-bold"}>{connectionStatus === 'connected' ? 'Conectado e Operando' : 'Desconectado'}</span></p>
-                  {connectionStep === 'disconnected' && (<Button onClick={handleConnectNewNumber}><QrCode className="w-4 h-4" /> Conectar Novo Número</Button>)}
-                  {connectionStep === 'connected' && (<Button variant="danger" onClick={() => { setConnectionStep('disconnected'); setConnectionStatus('disconnected'); handleSave({...gymData, connection_status: 'disconnected'}); handleConnectNewNumber(); }}>Desconectar e Gerar Novo QR</Button>)}
-                </div>
-              </div>
-            </div>
-            
-            {/* API OFICIAL META - WhatsApp e Instagram - Condicional para Trial (só mostra se marcou opção no Treinar IA) */}
-            {(subscriptionInfo.plan_type !== 'trial_7_days' || gymData.use_official_api_coexistencia || gymData.use_official_api_somente) && (
-            <div className="bg-gradient-to-br from-blue-900/30 to-green-900/30 border border-blue-500/40 rounded-xl p-6 shadow-lg relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10"><Globe className="w-32 h-32 text-blue-400" /></div>
-              <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h2 className="text-2xl font-bold text-white">API Oficial da Meta</h2>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30 font-bold flex items-center gap-1"><Check className="w-3 h-3" /> Parceiro Oficial</span>
-                  </div>
-                  <p className="text-gray-400 mb-4">Conecte seu WhatsApp Business e Instagram via API oficial. Mais estabilidade, menos erros, e funcionalidades avançadas.</p>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <span className="text-xs px-2 py-1 rounded bg-green-500/10 text-green-300 border border-green-500/20 flex items-center gap-1"><MessageCircle className="w-3 h-3" /> WhatsApp Business</span>
-                    <span className="text-xs px-2 py-1 rounded bg-pink-500/10 text-pink-300 border border-pink-500/20 flex items-center gap-1"><Instagram className="w-3 h-3" /> Instagram DM</span>
-                  </div>
-                  <Button variant="facebook" onClick={handleMetaEmbeddedSignup}>
-                    <Facebook className="w-4 h-4" /> Conectar com Meta
-                  </Button>
-                  <p className="text-xs text-gray-500 mt-3">Requer uma conta no Facebook vinculada ao seu negócio.</p>
-                </div>
-              </div>
-            </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div className={`rounded-xl p-6 text-white shadow-lg border transition-colors ${gymData.ai_active ? 'bg-gradient-to-br from-orange-500/10 to-orange-900/10 border-orange-500/20' : 'bg-gray-800 border-gray-600 opacity-75'}`}><div className="flex justify-between items-start"><div><p className="text-orange-200 text-sm font-medium">Status IA WhatsApp</p><h2 className="text-3xl font-bold mt-1 text-orange-50">{gymData.ai_active ? 'Ligada' : 'Pausada'}</h2></div><button onClick={toggleAI} className={`p-2 rounded-full transition-colors ${gymData.ai_active ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} ${isTrialExpired ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={isTrialExpired}><Power className="w-6 h-6 text-white" /></button></div><p className="text-xs mt-2 text-gray-400">{gymData.ai_active ? 'Respondendo no Zap.' : 'Não responderá no Zap.'}</p>{trainingError && <p className="text-red-400 text-xs mt-2 font-bold animate-pulse">{trainingError}</p>} {isTrialExpired && <p className="text-red-400 text-xs mt-2 font-bold flex items-center gap-1"><Lock className="w-3 h-3" /> Trial Expirado</p>}</div><div className={`rounded-xl p-6 text-white shadow-lg border transition-colors ${gymData.ai_active_instagram ? 'bg-gradient-to-br from-pink-500/10 to-purple-900/10 border-pink-500/20' : 'bg-gray-800 border-gray-600 opacity-75'}`}><div className="flex justify-between items-start"><div><p className="text-pink-200 text-sm font-medium">Status IA Instagram</p><h2 className="text-3xl font-bold mt-1 text-pink-50">{gymData.ai_active_instagram ? 'Ligada' : 'Pausada'}</h2></div><button disabled className={`p-2 rounded-full transition-colors ${gymData.ai_active_instagram ? 'bg-green-500' : 'bg-gray-600'} cursor-not-allowed`}><Power className="w-6 h-6 text-white" /></button></div><p className="text-xs mt-2 text-gray-400">Em manutenção.</p></div></div>
-            <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-500/30 rounded-xl p-4 flex items-center justify-between"><div className="flex items-center gap-3"><LayoutList className="w-8 h-8 text-blue-400" /><div><h3 className="font-bold text-white text-sm">Painel Omnichannel Disponível</h3><p className="text-xs text-gray-300">Tenha +controle da IA, veja conversas e relatórios (+R$ 150).</p></div></div><button onClick={() => setActiveTab('plans')} className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded-lg font-medium">Ativar Agora</button></div>
-            <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden"><div className="p-4 border-b border-gray-700 flex items-center gap-2"><History className="w-5 h-5 text-orange-400" /><h3 className="font-bold text-white">Últimas conversas registradas</h3></div><div className="p-4 bg-gray-900/50 max-h-[400px] overflow-y-auto">{logs.length === 0 ? ( <div className="text-center py-10 text-gray-500"><MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-20" /><p>Nenhuma conversa registrada ainda.</p></div> ) : ( <div className="space-y-4"> {logs.map((log, index) => ( <div key={index} className={`flex ${log.sender === 'ai' ? 'justify-end' : 'justify-start'}`}> <div className={`max-w-[80%] p-3 rounded-2xl ${log.sender === 'ai' ? 'bg-orange-500/20 border border-orange-500/30 text-orange-100 rounded-br-none' : 'bg-gray-700 border border-gray-600 text-gray-200 rounded-bl-none'}`}> <div className="flex items-center gap-2 mb-1 opacity-70 text-[10px] uppercase tracking-wider"> {log.sender === 'ai' ? <span>🤖 IARA</span> : <span>👤 Aluno</span>}<span>• {new Date(log.created_at).toLocaleTimeString()}</span> </div> <p className="text-sm">{typeof log.message_content === 'string' ? log.message_content : JSON.stringify(log.message_content)}</p> </div> </div> ))} </div> )}</div></div>
           </div>
         );
       
