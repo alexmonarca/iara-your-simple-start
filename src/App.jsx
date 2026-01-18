@@ -820,7 +820,7 @@ function Dashboard({ session }) {
               onOpenWhatsAppConnect={displayPlanName === 'Trial Grátis' ? handleConnectNewNumber : handleMetaEmbeddedSignup}
               whatsappStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
               aiStatus={gymData.ai_active ? 'active' : 'inactive'}
-              showOnboardingStepsShortcut={subscriptionInfo?.plan_type === 'trial_7_days'}
+              showOnboardingStepsShortcut={false}
               onOpenOnboardingSteps={() => setIsOnboardingModalOpen(true)}
             />
           </div>
@@ -1037,20 +1037,34 @@ function Dashboard({ session }) {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('plans');
-                  setMobileMenuOpen(false);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 text-sm shadow-lg shadow-orange-500/20"
-              >
-                Fazer upgrade
-                <Gift className="w-4 h-4" />
-              </button>
+              {/* Ações (mobile: empilha; desktop: lado a lado) */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsOnboardingModalOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-700 bg-gray-900 text-gray-100 font-semibold px-3 py-2 text-xs sm:text-sm whitespace-nowrap hover:bg-gray-800 transition-colors"
+                  aria-label="Primeiros passos - Economize aqui"
+                >
+                  <CheckSquare className="w-4 h-4 text-orange-400" />
+                  Primeiros passos - Economize aqui!
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('plans');
+                    setMobileMenuOpen(false);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 text-sm shadow-lg shadow-orange-500/20"
+                >
+                  Fazer upgrade
+                  <Gift className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
+        )}
         )}
 
         <div className="p-4 md:p-8 lg:p-10">
