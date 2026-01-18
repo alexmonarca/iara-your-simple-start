@@ -279,7 +279,7 @@ export default function HomeAIStart({
             )}
 
             {messages.length > 0 && (
-              <div className="mb-4 max-h-[46vh] overflow-y-auto pr-1 space-y-3">
+              <div className="mb-4 max-h-[46vh] overflow-y-auto pr-1 space-y-3 chat-scroll">
                 {messages.map((m, idx) => {
                   const isUser = m.role === "user";
                   return (
