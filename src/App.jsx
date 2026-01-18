@@ -778,7 +778,7 @@ function Dashboard({ session }) {
               planName={displayPlanName === 'Trial Grátis' ? 'Plano GRATUITO' : displayPlanName}
               onOpenPlansTab={() => setActiveTab('plans')}
               onOpenTrainTab={() => setActiveTab('training')}
-              onOpenWhatsAppConnect={handleMetaEmbeddedSignup}
+              onOpenWhatsAppConnect={displayPlanName === 'Trial Grátis' ? handleConnectNewNumber : handleMetaEmbeddedSignup}
               whatsappStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
               aiStatus={gymData.ai_active ? 'active' : 'inactive'}
             />

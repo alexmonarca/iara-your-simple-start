@@ -64,29 +64,29 @@ export default function HomeAIStart({
       <div className="w-full max-w-3xl">
         <div className="mb-8">
           <div className="min-w-0">
+            {onOpenPlansTab && (
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground">
+                <span className="text-foreground/90">{planName || "Plano"}</span>
+                <span className="opacity-60">|</span>
+                <button
+                  type="button"
+                  onClick={onOpenPlansTab}
+                  className="underline underline-offset-4 text-foreground hover:text-primary transition-colors"
+                >
+                  Fazer upgrade
+                </button>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-primary" />
                 <span>Olá! Aqui é a IARA!</span>
               </div>
-
-              {onOpenPlansTab && (
-                <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground">
-                  <span className="text-foreground/90">{planName || "Plano"}</span>
-                  <span className="opacity-60">|</span>
-                  <button
-                    type="button"
-                    onClick={onOpenPlansTab}
-                    className="underline underline-offset-4 text-foreground hover:text-primary transition-colors"
-                  >
-                    Fazer upgrade
-                  </button>
-                </div>
-              )}
             </div>
 
             <h1 className="mt-2 text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
-              Bóra Treinar essa IA?
+              Bora Treinar essa IA?
             </h1>
           </div>
         </div>
