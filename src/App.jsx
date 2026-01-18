@@ -972,6 +972,46 @@ function Dashboard({ session }) {
       
       {/* Main Content */}
       <main className="flex-1 md:ml-64 min-h-screen">
+        {/* Tarja de trial (visível em toda a plataforma) */}
+        {subscriptionInfo?.plan_type === 'trial_7_days' && (
+          <div className="sticky top-16 md:top-0 z-30 border-b border-orange-500/20 bg-gray-950/90 backdrop-blur">
+            <div className="max-w-6xl mx-auto px-4 md:px-8 lg:px-10 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="w-4 h-4 text-orange-400" />
+                <span className="text-gray-200">
+                  Seu teste do plano termina em{' '}
+                  {trialInfo?.endsAt ? (
+                    <TrialTimer
+                      endsAt={trialInfo.endsAt}
+                      onExpire={() => setTrialInfo((prev) => ({ ...prev, status: 'expired' }))}
+                    />
+                  ) : (
+                    <span className="text-orange-400 font-mono font-bold">—</span>
+                  )}
+                </span>
+                {trialInfo?.status === 'expired' && (
+                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-300 border border-red-500/20">
+                    Expirado
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('plans');
+                  setMobileMenuOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 text-sm shadow-lg shadow-orange-500/20"
+              >
+                Fazer upgrade
+                <Gift className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="p-4 md:p-8 lg:p-10">
           <div className="max-w-6xl mx-auto">{renderContent()}</div>
           <div className="mt-10 text-center md:hidden"><p className="text-[10px] text-gray-600 uppercase tracking-wider">Desenvolvido por</p><p className="text-xs text-orange-400 font-bold">Monarca Hub</p></div>
