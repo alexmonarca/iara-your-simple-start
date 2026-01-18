@@ -63,19 +63,14 @@ export default function HomeAIStart({
     <section className="min-h-[70vh] flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-3xl">
         <div className="mb-8">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-primary" />
                 <span>Olá! Aqui é a IARA!</span>
               </div>
-              <h1 className="mt-2 text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
-                Bóra Treinar essa IA?
-              </h1>
-            </div>
 
-            {onOpenPlansTab && (
-              <div className="flex-shrink-0">
+              {onOpenPlansTab && (
                 <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground">
                   <span className="text-foreground/90">{planName || "Plano"}</span>
                   <span className="opacity-60">|</span>
@@ -87,45 +82,12 @@ export default function HomeAIStart({
                     Fazer upgrade
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-border bg-card/50 px-4 py-3">
-              <div className="text-xs text-muted-foreground">Status do WhatsApp</div>
-              <div className="mt-1 flex items-center gap-2">
-                <span
-                  className={
-                    "inline-flex items-center px-2 py-1 rounded-full text-xs border " +
-                    (whatsappConnected
-                      ? "bg-green-500/10 text-green-400 border-green-500/30"
-                      : "bg-destructive/10 text-destructive border-destructive/30")
-                  }
-                >
-                  {whatsappConnected ? "Conectado" : "Desconectado"}
-                </span>
-                {!whatsappConnected && (
-                  <span className="text-xs text-muted-foreground">Conecte para ativar a IA</span>
-                )}
-              </div>
+              )}
             </div>
 
-            <div className="rounded-2xl border border-border bg-card/50 px-4 py-3">
-              <div className="text-xs text-muted-foreground">Status da IA</div>
-              <div className="mt-1 flex items-center gap-2">
-                <span
-                  className={
-                    "inline-flex items-center px-2 py-1 rounded-full text-xs border " +
-                    (aiActive
-                      ? "bg-green-500/10 text-green-400 border-green-500/30"
-                      : "bg-muted/30 text-muted-foreground border-border")
-                  }
-                >
-                  {aiActive ? "Ativa" : "Pausada"}
-                </span>
-              </div>
-            </div>
+            <h1 className="mt-2 text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
+              Bóra Treinar essa IA?
+            </h1>
           </div>
         </div>
 
@@ -184,7 +146,7 @@ export default function HomeAIStart({
                   className={
                     "text-[10px] px-2 py-0.5 rounded-full border " +
                     (whatsappConnected
-                      ? "bg-green-500/10 text-green-400 border-green-500/30"
+                      ? "bg-success/10 text-success border-success/30"
                       : "bg-muted/30 text-muted-foreground border-border")
                   }
                 >
@@ -195,17 +157,23 @@ export default function HomeAIStart({
               <button
                 type="button"
                 onClick={() => setIsUpgradeModalOpen(true)}
-                className="px-4 py-2 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm"
+                className="px-4 py-2 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
               >
-                Criar arte
+                <span>Criar arte</span>
+                <span
+                  className={
+                    "text-[10px] px-2 py-0.5 rounded-full border " +
+                    (aiActive
+                      ? "bg-success/10 text-success border-success/30"
+                      : "bg-warning/10 text-warning border-warning/30")
+                  }
+                >
+                  {aiActive ? "IA ativa" : "IA Pausada"}
+                </span>
               </button>
             </div>
 
-            {!webhookUrl && (
-              <p className="mt-4 text-xs text-muted-foreground">
-                Dica: defina <code className="text-foreground">VITE_N8N_AI_WEBHOOK_URL</code> no Vercel para o envio ao n8n funcionar.
-              </p>
-            )}
+            {/* Observação: mensagens técnicas de deploy (Vercel/env) não devem aparecer para o usuário final */}
           </div>
         </div>
 
