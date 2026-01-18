@@ -995,7 +995,7 @@ function Dashboard({ session }) {
       
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-gray-950/98 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="md:hidden fixed inset-0 z-50 bg-gray-950 animate-in fade-in duration-200">
           <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900">
             <div className="flex items-center gap-2 font-bold text-xl text-orange-400"><img src="/logo-iara.png" className="h-8" alt="IARA Gym" /> IARA Gym</div>
             <button className="text-gray-300 p-2" onClick={() => setMobileMenuOpen(false)}><X className="w-6 h-6" /></button>
