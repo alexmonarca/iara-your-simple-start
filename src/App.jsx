@@ -820,7 +820,7 @@ function Dashboard({ session }) {
               onOpenWhatsAppConnect={displayPlanName === 'Trial Grátis' ? handleConnectNewNumber : handleMetaEmbeddedSignup}
               whatsappStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
               aiStatus={gymData.ai_active ? 'active' : 'inactive'}
-              showOnboardingStepsShortcut={false}
+              showOnboardingStepsShortcut={subscriptionInfo?.plan_type === 'trial_7_days'}
               onOpenOnboardingSteps={() => setIsOnboardingModalOpen(true)}
             />
           </div>
@@ -995,7 +995,7 @@ function Dashboard({ session }) {
       
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-gray-950 animate-in fade-in duration-200">
+        <div className="md:hidden fixed inset-0 z-50 bg-gray-950/98 backdrop-blur-md animate-in fade-in duration-200">
           <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900">
             <div className="flex items-center gap-2 font-bold text-xl text-orange-400"><img src="/logo-iara.png" className="h-8" alt="IARA Gym" /> IARA Gym</div>
             <button className="text-gray-300 p-2" onClick={() => setMobileMenuOpen(false)}><X className="w-6 h-6" /></button>
@@ -1037,35 +1037,20 @@ function Dashboard({ session }) {
                 )}
               </div>
 
-              {/* Ações (mobile: empilha; desktop: lado a lado) */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsOnboardingModalOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-700 bg-gray-900 text-gray-100 font-semibold px-3 py-2 text-xs sm:text-sm whitespace-nowrap hover:bg-gray-800 transition-colors"
-                  aria-label="Primeiros passos - Economize aqui"
-                >
-                  <CheckSquare className="w-4 h-4 text-orange-400" />
-                  Primeiros passos - Economize aqui!
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('plans');
-                    setMobileMenuOpen(false);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 text-sm shadow-lg shadow-orange-500/20"
-                >
-                  Fazer upgrade
-                  <Gift className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('plans');
+                  setMobileMenuOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 text-sm shadow-lg shadow-orange-500/20"
+              >
+                Fazer upgrade
+                <Gift className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        )}
-        )}
 
         <div className="p-4 md:p-8 lg:p-10">
           <div className="max-w-6xl mx-auto">{renderContent()}</div>
