@@ -15,3 +15,5 @@ export const env = {
   n8nAiWebhookUrl:
     import.meta.env.VITE_N8N_AI_WEBHOOK_URL ??
     "https://webhook.monarcahub.com/webhook/treinar_ia",
+};
+
