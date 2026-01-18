@@ -17,6 +17,7 @@ export default function HomeAIStart({
   aiStatus,
   showOnboardingStepsShortcut,
   onOpenOnboardingSteps,
+  onToggleAI,
 }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -27,6 +28,7 @@ export default function HomeAIStart({
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const [aiStatusHint, setAiStatusHint] = useState("");
+  const [showPauseConfirm, setShowPauseConfirm] = useState(false);
 
   const messagesEndRef = useRef(null);
   const composerRef = useRef(null);
@@ -443,17 +445,20 @@ export default function HomeAIStart({
               <button
                 type="button"
                 onClick={() => {
-                  if (aiActive) return;
+                  if (aiActive) {
+                    setShowPauseConfirm(true);
+                    return;
+                  }
                   if (!whatsappConnected) {
                     setAiStatusHint("Para ativar a IA, conecte o WhatsApp primeiro.");
                     return;
                   }
                 }}
                 className={
-                  "px-4 py-2 rounded-xl border text-sm select-none transition-colors hover:bg-background/40 " +
+                  "px-4 py-2 rounded-xl border text-sm select-none transition-colors " +
                   (aiActive
-                    ? "bg-success/10 text-success border-success/30 cursor-default"
-                    : "bg-warning/10 text-warning border-warning/30")
+                    ? "bg-success/10 text-success border-success/30 hover:bg-success/20 cursor-pointer"
+                    : "bg-warning/10 text-warning border-warning/30 hover:bg-background/40")
                 }
                 aria-label={aiActive ? "IA ativa" : "IA Pausada"}
               >
@@ -522,6 +527,43 @@ export default function HomeAIStart({
                     </button>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Pausar IA */}
+        {showPauseConfirm && (
+          <div
+            onClick={() => setShowPauseConfirm(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md p-6 rounded-2xl border border-border bg-card shadow-2xl"
+            >
+              <h2 className="text-2xl font-semibold mb-3 text-foreground">
+                Pausar IA?
+              </h2>
+              <p className="text-muted-foreground mb-4">
+                Tem certeza de que deseja pausar a IA? Ela não responderá mais mensagens até ser reativada.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowPauseConfirm(false);
+                    if (onToggleAI) onToggleAI();
+                  }}
+                  className="flex-1 px-4 py-2 rounded-lg bg-warning text-warning-foreground hover:bg-warning/90 transition-colors font-medium"
+                >
+                  Pausar
+                </button>
+                <button
+                  onClick={() => setShowPauseConfirm(false)}
+                  className="flex-1 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-accent transition-colors"
+                >
+                  Cancelar
+                </button>
               </div>
             </div>
           </div>

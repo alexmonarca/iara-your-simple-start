@@ -822,6 +822,7 @@ function Dashboard({ session }) {
               aiStatus={gymData.ai_active ? 'active' : 'inactive'}
               showOnboardingStepsShortcut={false}
               onOpenOnboardingSteps={() => setIsOnboardingModalOpen(true)}
+              onToggleAI={toggleAI}
             />
           </div>
         );
