@@ -775,6 +775,8 @@ function Dashboard({ session }) {
             <HomeAIStart
               user={{ id: userId, email: session?.user?.email }}
               webhookUrl={env.n8nAiWebhookUrl}
+              planName={displayPlanName === 'Trial Grátis' ? 'Plano GRATUITO' : displayPlanName}
+              onOpenPlansTab={() => setActiveTab('plans')}
               onOpenTrainTab={() => setActiveTab('training')}
             />
           </div>
