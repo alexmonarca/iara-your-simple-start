@@ -12,5 +12,6 @@ export const env = {
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqeXJpbnlkd3JhenV6amN6aGJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0OTA3MTAsImV4cCI6MjA3OTA2NjcxMH0.lx5gKNPJLBfBouwH99MFFYHtjvxDZeohwoJr9JlSblg",
 
   // n8n (webhook público) - acionado a cada mensagem do usuário na tela inicial
-  n8nAiWebhookUrl: import.meta.env.VITE_N8N_AI_WEBHOOK_URL,
-};
+  n8nAiWebhookUrl:
+    import.meta.env.VITE_N8N_AI_WEBHOOK_URL ??
+    "https://webhook.monarcahub.com/webhook/treinar_ia",
