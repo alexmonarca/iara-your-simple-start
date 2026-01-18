@@ -1037,18 +1037,28 @@ function Dashboard({ session }) {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('plans');
-                  setMobileMenuOpen(false);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 text-sm shadow-lg shadow-orange-500/20"
-              >
-                Fazer upgrade
-                <Gift className="w-4 h-4" />
-              </button>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsOnboardingModalOpen(true)}
+                  className="inline-flex items-center justify-center rounded-xl bg-gray-900 hover:bg-gray-800 text-gray-100 font-bold px-3 py-2 text-[11px] sm:text-sm border border-gray-800 whitespace-nowrap"
+                >
+                  Primeiros passos - Economize aqui!
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('plans');
+                    setMobileMenuOpen(false);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 text-sm shadow-lg shadow-orange-500/20"
+                >
+                  Fazer upgrade
+                  <Gift className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         )}
