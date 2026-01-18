@@ -26,6 +26,7 @@ export default function HomeAIStart({
   const [conversationId, setConversationId] = useState(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [composerExpanded, setComposerExpanded] = useState(false);
+  const [aiStatusHint, setAiStatusHint] = useState("");
 
   const messagesEndRef = useRef(null);
   const composerRef = useRef(null);
@@ -267,7 +268,7 @@ export default function HomeAIStart({
               </div>
             </div>
 
-            <h1 className="mt-2 text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
+            <h1 className="mt-2 text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-foreground leading-tight">
               Bora Treinar essa IA?
             </h1>
           </div>
@@ -369,7 +370,7 @@ export default function HomeAIStart({
                   // Mantém foco no campo ao expandir/contrair
                   setTimeout(() => composerRef.current?.focus(), 0);
                 }}
-                className="inline-flex items-center justify-center h-11 w-11 rounded-2xl border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors"
+                className="hidden sm:inline-flex items-center justify-center h-11 w-11 rounded-2xl border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors"
                 aria-label={composerExpanded ? "Fechar caixa de texto" : "Abrir caixa de texto"}
                 title={composerExpanded ? "Fechar" : "Abrir"}
               >
@@ -391,16 +392,6 @@ export default function HomeAIStart({
                 <Send className="w-5 h-5" />
               </button>
             </div>
-
-             {error && (
-               <div className="mt-3 text-sm text-destructive border border-destructive/30 bg-destructive/10 rounded-xl px-3 py-2">
-                 {error}
-               </div>
-             )}
-
-             <div className="mt-3 text-xs text-muted-foreground">
-               A IARA pode cometer erros, é bom revisar as informações na aba “Treinar IA”.
-             </div>
 
              <div className="mt-4 flex flex-wrap gap-2">
               <button
@@ -449,17 +440,45 @@ export default function HomeAIStart({
                 Criar arte
               </button>
 
-              <div
+              <button
+                type="button"
+                onClick={() => {
+                  if (aiActive) return;
+                  if (!whatsappConnected) {
+                    setAiStatusHint("Para ativar a IA, conecte o WhatsApp primeiro.");
+                    return;
+                  }
+                }}
                 className={
-                  "px-4 py-2 rounded-xl border text-sm select-none " +
+                  "px-4 py-2 rounded-xl border text-sm select-none transition-colors hover:bg-background/40 " +
                   (aiActive
-                    ? "bg-success/10 text-success border-success/30"
+                    ? "bg-success/10 text-success border-success/30 cursor-default"
                     : "bg-warning/10 text-warning border-warning/30")
                 }
                 aria-label={aiActive ? "IA ativa" : "IA Pausada"}
               >
                 {aiActive ? "IA ativa" : "IA Pausada"}
+              </button>
+            </div>
+
+            {(aiStatusHint || error) && (
+              <div className="mt-3 space-y-2">
+                {error && (
+                  <div className="text-sm text-destructive border border-destructive/30 bg-destructive/10 rounded-xl px-3 py-2">
+                    {error}
+                  </div>
+                )}
+
+                {aiStatusHint && (
+                  <div className="text-sm border border-border bg-background/40 text-muted-foreground rounded-xl px-3 py-2">
+                    {aiStatusHint}
+                  </div>
+                )}
               </div>
+            )}
+
+            <div className="mt-3 text-xs text-muted-foreground">
+              A IARA pode cometer erros, é bom revisar as informações na aba “Treinar IA”.
             </div>
 
             {/* Observação: mensagens técnicas de deploy (Vercel/env) não devem aparecer para o usuário final */}
