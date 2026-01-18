@@ -316,23 +316,30 @@ export default function HomeAIStart({
             )}
 
             {/* Input */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-end gap-3">
               <div className="flex-1">
-                <input
+                <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    // Ctrl/Cmd + Enter envia; Enter sozinho quebra linha normalmente.
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                       e.preventDefault();
                       send();
                     }
                   }}
+                  onInput={(e) => {
+                    // Auto-grow simples (sem bibliotecas)
+                    e.currentTarget.style.height = "0px";
+                    e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                  }}
+                  rows={1}
                   placeholder={
                     messages.length === 0
                       ? "Ensine tudo sobre seu negócio aqui!"
                       : "Continue a conversa com a IARA…"
                   }
-                  className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/80 outline-none text-base md:text-lg"
+                  className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/80 outline-none text-base md:text-lg resize-none leading-relaxed max-h-40 overflow-y-auto"
                   aria-label="Mensagem para a IARA"
                 />
               </div>
