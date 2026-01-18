@@ -311,6 +311,44 @@ const HighTicketModal = ({ isOpen, onClose, total }) => { if (!isOpen) return nu
 const QrCodeModal = ({ isOpen, onClose, instanceName, connectionStatus, qrCodeBase64, isGenerating }) => { if (!isOpen) return null; return ( <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in"> <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden flex flex-col"> <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 bg-gray-200 p-1 rounded-full z-10"><X className="w-5 h-5" /></button> <div className="p-6 text-center bg-gray-50 border-b border-gray-200"> <h3 className="text-xl font-bold text-gray-800 flex items-center justify-center gap-2"><QrCode className="w-6 h-6 text-orange-500"/> Conectar WhatsApp</h3> <p className="text-sm text-gray-500 mt-1">Abra o WhatsApp &gt; Aparelhos Conectados &gt; Conectar</p> <p className="text-xs text-orange-400 mt-2 font-mono">ID: {instanceName}</p> </div> <div className="flex-1 bg-white p-4 flex items-center justify-center min-h-[350px]"> {connectionStatus === 'connected' ? ( <div className="text-center"><CheckCircle2 className="w-20 h-20 text-green-500 mx-auto mb-4 animate-bounce" /><h3 className="text-2xl font-bold text-green-600">Conectado!</h3><p className="text-gray-500 mt-2">Sincronização concluída.</p></div> ) : ( <div className="w-full flex flex-col items-center justify-center"> {qrCodeBase64 ? ( <img src={qrCodeBase64} alt="QR Code WhatsApp para conectar número" className="w-64 h-64 object-contain border-4 border-gray-100 rounded-lg" /> ) : isGenerating ? ( <div className="text-center"><RefreshCw className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" /><p className="text-gray-600 font-medium">Gerando nova conexão segura...</p><p className="text-xs text-gray-400 mt-2">Isso pode levar alguns segundos.</p></div> ) : ( <div className="text-gray-400 text-sm">Aguardando solicitação...</div> )} </div> )} </div> <div className="p-4 bg-gray-100 text-center border-t border-gray-200"> {connectionStatus === 'connected' ? ( <Button onClick={onClose} variant="success" className="w-full">Fechar e Começar</Button> ) : ( <div className="flex items-center justify-center gap-2 text-xs text-gray-500"><Loader2 className="w-3 h-3 animate-spin text-orange-500" /> Verificando status automaticamente...</div> )} </div> </div> </div> ); };
 const VideoModal = ({ isOpen, onClose, videoId }) => { if (!isOpen) return null; return ( <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in"> <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-3xl relative overflow-hidden flex flex-col"> <div className="flex justify-between items-center p-4 border-b border-gray-800 bg-gray-800/50"> <h3 className="text-white font-bold flex items-center gap-2"><PlayCircle className="w-5 h-5 text-blue-400" /> Tutorial IARA Gym</h3> <button onClick={onClose} className="text-gray-400 hover:text-white bg-gray-700 p-1 rounded-full"><X className="w-5 h-5" /></button> </div> <div className="aspect-video w-full bg-black"> <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${videoId}?autoplay=1`} title="Tutorial Video" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen ></iframe> </div> </div> </div> ); };
 
+const OnboardingStepsModal = ({ isOpen, onClose, gymData, connectionStatus, planType, goToPlans, openVideo, setOnboardingDiscount }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+      <div className="bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl relative overflow-hidden">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-white bg-gray-800 p-1 rounded-full z-10"
+          aria-label="Fechar"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="p-6 md:p-8">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-white">Primeiros passos</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Complete as etapas para garantir desconto e finalizar sua assinatura.
+              </p>
+            </div>
+          </div>
+
+          <OnboardingChecklist
+            gymData={gymData}
+            connectionStatus={connectionStatus}
+            planType={planType}
+            goToPlans={goToPlans}
+            openVideo={openVideo}
+            setOnboardingDiscount={setOnboardingDiscount}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ==========================================
 // AUTH SCREEN
 // ==========================================
@@ -400,6 +438,7 @@ function Dashboard({ session }) {
   const [isActionLoading, setIsActionLoading] = useState(false);
   
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
 
   // CUPONS
   const [coupon, setCoupon] = useState('');
@@ -781,6 +820,8 @@ function Dashboard({ session }) {
               onOpenWhatsAppConnect={displayPlanName === 'Trial Grátis' ? handleConnectNewNumber : handleMetaEmbeddedSignup}
               whatsappStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
               aiStatus={gymData.ai_active ? 'active' : 'inactive'}
+              showOnboardingStepsShortcut={subscriptionInfo?.plan_type === 'trial_7_days'}
+              onOpenOnboardingSteps={() => setIsOnboardingModalOpen(true)}
             />
           </div>
         );
@@ -1019,6 +1060,22 @@ function Dashboard({ session }) {
       </main>
 
       {/* MODAIS */}
+      <OnboardingStepsModal
+        isOpen={isOnboardingModalOpen}
+        onClose={() => setIsOnboardingModalOpen(false)}
+        gymData={gymData}
+        connectionStatus={connectionStatus}
+        planType={subscriptionInfo?.plan_type}
+        goToPlans={() => {
+          setIsOnboardingModalOpen(false);
+          setActiveTab('plans');
+          setMobileMenuOpen(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        openVideo={() => setIsVideoModalOpen(true)}
+        setOnboardingDiscount={setOnboardingDiscount}
+      />
+
       <CheckoutModal 
         isOpen={isCheckoutOpen} 
         onClose={() => { setIsCheckoutOpen(false); setCheckoutError(''); }} 
