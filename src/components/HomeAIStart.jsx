@@ -65,7 +65,7 @@ export default function HomeAIStart({
         <div className="mb-8">
           <div className="min-w-0">
             {onOpenPlansTab && (
-              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground">
                 <span className="text-foreground/90">{planName || "Plano"}</span>
                 <span className="opacity-60">|</span>
                 <button
@@ -157,20 +157,22 @@ export default function HomeAIStart({
               <button
                 type="button"
                 onClick={() => setIsUpgradeModalOpen(true)}
-                className="px-4 py-2 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
+                className="px-4 py-2 rounded-xl border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm"
               >
-                <span>Criar arte</span>
-                <span
-                  className={
-                    "text-[10px] px-2 py-0.5 rounded-full border " +
-                    (aiActive
-                      ? "bg-success/10 text-success border-success/30"
-                      : "bg-warning/10 text-warning border-warning/30")
-                  }
-                >
-                  {aiActive ? "IA ativa" : "IA Pausada"}
-                </span>
+                Criar arte
               </button>
+
+              <div
+                className={
+                  "px-4 py-2 rounded-xl border text-sm select-none " +
+                  (aiActive
+                    ? "bg-success/10 text-success border-success/30"
+                    : "bg-warning/10 text-warning border-warning/30")
+                }
+                aria-label={aiActive ? "IA ativa" : "IA Pausada"}
+              >
+                {aiActive ? "IA ativa" : "IA Pausada"}
+              </div>
             </div>
 
             {/* Observação: mensagens técnicas de deploy (Vercel/env) não devem aparecer para o usuário final */}
