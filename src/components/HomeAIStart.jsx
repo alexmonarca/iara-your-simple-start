@@ -325,15 +325,18 @@ export default function HomeAIStart({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    // Enter = quebra de linha. Ctrl/Cmd + Enter = enviar.
-                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    // Enter = enviar. Ctrl/Cmd + Enter = quebra de linha.
+                    if (
+                      e.key === "Enter" &&
+                      !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)
+                    ) {
                       e.preventDefault();
                       send();
                       return;
                     }
 
-                    // Evita que algum handler externo interprete Enter e envie a mensagem.
-                    if (e.key === "Enter" && !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)) {
+                    // Garante que Ctrl/Cmd+Enter NÃO seja interpretado como envio por algum handler externo
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                       e.stopPropagation();
                     }
                   }}
@@ -381,19 +384,23 @@ export default function HomeAIStart({
                 disabled={!canSend}
                 className="inline-flex items-center justify-center h-11 w-11 rounded-2xl bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Enviar"
-                title="Ctrl+Enter para enviar"
+                title="Enter para enviar"
               >
                 <Send className="w-5 h-5" />
               </button>
             </div>
 
-            {error && (
-              <div className="mt-3 text-sm text-destructive border border-destructive/30 bg-destructive/10 rounded-xl px-3 py-2">
-                {error}
-              </div>
-            )}
+             {error && (
+               <div className="mt-3 text-sm text-destructive border border-destructive/30 bg-destructive/10 rounded-xl px-3 py-2">
+                 {error}
+               </div>
+             )}
 
-            <div className="mt-4 flex flex-wrap gap-2">
+             <div className="mt-3 text-xs text-muted-foreground">
+               A IARA pode cometer erros, é bom revisar as informações na aba “Treinar IA”.
+             </div>
+
+             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={onOpenTrainTab}
