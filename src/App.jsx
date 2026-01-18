@@ -1065,7 +1065,6 @@ function Dashboard({ session }) {
             </div>
           </div>
         )}
-        )}
 
         <div className="p-4 md:p-8 lg:p-10">
           <div className="max-w-6xl mx-auto">{renderContent()}</div>
