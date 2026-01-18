@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles, Send } from "lucide-react";
+import { Sparkles, Send, Maximize2, Minimize2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 /**
@@ -23,8 +23,10 @@ export default function HomeAIStart({
   const [error, setError] = useState("");
   const [conversationId, setConversationId] = useState(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [composerExpanded, setComposerExpanded] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const composerRef = useRef(null);
 
   const canSend = useMemo(
     () =>
@@ -319,30 +321,59 @@ export default function HomeAIStart({
             <div className="flex items-end gap-3">
               <div className="flex-1">
                 <textarea
+                  ref={composerRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    // Ctrl/Cmd + Enter envia; Enter sozinho quebra linha normalmente.
+                    // Enter = quebra de linha. Ctrl/Cmd + Enter = enviar.
                     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                       e.preventDefault();
                       send();
+                      return;
+                    }
+
+                    // Evita que algum handler externo interprete Enter e envie a mensagem.
+                    if (e.key === "Enter" && !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)) {
+                      e.stopPropagation();
                     }
                   }}
                   onInput={(e) => {
-                    // Auto-grow simples (sem bibliotecas)
+                    // Auto-grow simples (sem bibliotecas) quando NÃO está expandido
+                    if (composerExpanded) return;
                     e.currentTarget.style.height = "0px";
                     e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
                   }}
-                  rows={1}
+                  rows={composerExpanded ? 6 : 1}
                   placeholder={
                     messages.length === 0
                       ? "Ensine tudo sobre seu negócio aqui!"
                       : "Continue a conversa com a IARA…"
                   }
-                  className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/80 outline-none text-base md:text-lg resize-none leading-relaxed max-h-40 overflow-y-auto"
+                  className={
+                    "w-full bg-transparent text-foreground placeholder:text-muted-foreground/80 outline-none text-base md:text-lg resize-none leading-relaxed overflow-y-auto chat-scroll " +
+                    (composerExpanded ? "min-h-32 max-h-[46vh]" : "max-h-40")
+                  }
                   aria-label="Mensagem para a IARA"
                 />
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setComposerExpanded((v) => !v);
+                  // Mantém foco no campo ao expandir/contrair
+                  setTimeout(() => composerRef.current?.focus(), 0);
+                }}
+                className="inline-flex items-center justify-center h-11 w-11 rounded-2xl border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors"
+                aria-label={composerExpanded ? "Fechar caixa de texto" : "Abrir caixa de texto"}
+                title={composerExpanded ? "Fechar" : "Abrir"}
+              >
+                {composerExpanded ? (
+                  <Minimize2 className="w-5 h-5" />
+                ) : (
+                  <Maximize2 className="w-5 h-5" />
+                )}
+              </button>
 
               <button
                 type="button"
@@ -350,6 +381,7 @@ export default function HomeAIStart({
                 disabled={!canSend}
                 className="inline-flex items-center justify-center h-11 w-11 rounded-2xl bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Enviar"
+                title="Ctrl+Enter para enviar"
               >
                 <Send className="w-5 h-5" />
               </button>
