@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles, Send, Maximize2, Minimize2, CheckSquare } from "lucide-react";
+import { Sparkles, Send, Maximize2, Minimize2, CheckSquare, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 /**
@@ -23,12 +23,14 @@ export default function HomeAIStart({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [clearingHistory, setClearingHistory] = useState(false);
   const [error, setError] = useState("");
   const [conversationId, setConversationId] = useState(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const [aiStatusHint, setAiStatusHint] = useState("");
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const messagesEndRef = useRef(null);
   const composerRef = useRef(null);
@@ -152,7 +154,30 @@ export default function HomeAIStart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const send = async () => {
+  const clearHistory = async () => {
+    if (!user?.id || clearingHistory) return;
+
+    setClearingHistory(true);
+    setError("");
+
+    try {
+      const { error: deleteError } = await supabase
+        .from("chat_messages")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (deleteError) throw deleteError;
+
+      setMessages([]);
+      setConversationId(
+        crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
+      );
+    } catch (e) {
+      setError(e?.message || "Não foi possível limpar o histórico.");
+    } finally {
+      setClearingHistory(false);
+    }
+  };
     if (!canSend) return;
 
     const userText = input.trim();
@@ -422,6 +447,18 @@ export default function HomeAIStart({
                 </span>
               </button>
 
+              {messages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowClearConfirm(true)}
+                  className="px-4 py-2 rounded-xl border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
+                  aria-label="Limpar histórico do chat"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Limpar histórico
+                </button>
+              )}
+
               {showOnboardingStepsShortcut && Boolean(onOpenOnboardingSteps) && (
                 <button
                   type="button"
@@ -561,6 +598,47 @@ export default function HomeAIStart({
                 <button
                   onClick={() => setShowPauseConfirm(false)}
                   className="flex-1 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-accent transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Limpar Histórico */}
+        {showClearConfirm && (
+          <div
+            onClick={() => !clearingHistory && setShowClearConfirm(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md p-6 rounded-2xl border border-border bg-card shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+            >
+              <h2 className="text-2xl font-semibold mb-3 text-foreground">
+                Limpar histórico?
+              </h2>
+              <p className="text-muted-foreground mb-4">
+                Isso apagará definitivamente todas as mensagens do seu chat.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={async () => {
+                    await clearHistory();
+                    setShowClearConfirm(false);
+                  }}
+                  disabled={clearingHistory}
+                  className="flex-1 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {clearingHistory ? "Limpando…" : "Apagar"}
+                </button>
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  disabled={clearingHistory}
+                  className="flex-1 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-accent transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Cancelar
                 </button>
