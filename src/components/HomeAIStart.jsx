@@ -18,6 +18,7 @@ export default function HomeAIStart({
   showOnboardingStepsShortcut,
   onOpenOnboardingSteps,
   onToggleAI,
+  trialExpired,
 }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -40,13 +41,16 @@ export default function HomeAIStart({
   const messagesEndRef = useRef(null);
   const composerRef = useRef(null);
 
+  const chatBlocked = Boolean(trialExpired);
+
   const canSend = useMemo(
     () =>
       input.trim().length > 0 &&
       !sending &&
+      !chatBlocked &&
       Boolean(conversationId) &&
       Boolean(user?.id),
-    [input, sending, conversationId, user?.id]
+    [input, sending, conversationId, user?.id, chatBlocked]
   );
 
   useEffect(() => {
@@ -202,6 +206,7 @@ export default function HomeAIStart({
 
   const send = async () => {
     if (!canSend) return;
+    if (chatBlocked) return;
 
     const userText = input.trim();
     setInput("");
@@ -304,6 +309,26 @@ export default function HomeAIStart({
   const whatsappConnected = whatsappStatus === "connected";
   const aiActive = aiStatus === "active";
 
+  const aiModelOptions = useMemo(() => {
+    const p = String(planName || "").toLowerCase();
+    // níveis: Trial < Start < Premium
+    if (p.includes("gratuito") || p.includes("trial")) return ["Trial"];
+    if (p.includes("premium")) return ["Trial", "Start", "Premium"];
+    if (p.includes("start") || p.includes("base")) return ["Trial", "Start"];
+    return ["Trial"]; // fallback seguro
+  }, [planName]);
+
+  const [aiModel, setAiModel] = useState(() => aiModelOptions[aiModelOptions.length - 1] || "Trial");
+
+  useEffect(() => {
+    // garante consistência se o plano mudar
+    const next = aiModelOptions.includes(aiModel)
+      ? aiModel
+      : aiModelOptions[aiModelOptions.length - 1] || "Trial";
+    setAiModel(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiModelOptions.join("|")]);
+
   return (
     <section className="min-h-[70vh] flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-3xl">
@@ -347,7 +372,7 @@ export default function HomeAIStart({
 
             {messages.length > 0 && historyMinimized && (
               <div className="mb-4 rounded-2xl px-4 py-3 text-sm border border-border bg-background/40 text-muted-foreground">
-                Histórico oculto. Clique na caixa de texto abaixo para continuar no final.
+                Abrir Histórico.
               </div>
             )}
 
@@ -418,7 +443,7 @@ export default function HomeAIStart({
                       !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)
                     ) {
                       e.preventDefault();
-                      send();
+                      if (!chatBlocked) send();
                       return;
                     }
 
@@ -471,7 +496,7 @@ export default function HomeAIStart({
                 disabled={!canSend}
                 className="inline-flex items-center justify-center h-11 w-11 rounded-2xl bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Enviar"
-                title="Enter para enviar"
+                title={chatBlocked ? "Faça upgrade para continuar" : "Enter para enviar"}
               >
                 <Send className="w-5 h-5" />
               </button>
@@ -549,33 +574,66 @@ export default function HomeAIStart({
                </button>
 
                {messages.length > 0 && (
-                 <button
-                   type="button"
-                   onClick={() => setShowClearConfirm(true)}
-                   className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors"
-                   aria-label="Limpar histórico do chat"
-                   title="Limpar histórico"
-                 >
-                   <Trash2 className="w-4 h-4" />
-                 </button>
+                 <div className="inline-flex items-center gap-2">
+                   <select
+                     value={aiModel}
+                     onChange={(e) => setAiModel(e.target.value)}
+                     className="h-10 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm px-3"
+                     aria-label="Modelo da IA"
+                     title="Modelo da IA (de acordo com seu plano)"
+                   >
+                     {aiModelOptions.map((opt) => (
+                       <option key={opt} value={opt}>
+                         {opt}
+                       </option>
+                     ))}
+                   </select>
+
+                   <button
+                     type="button"
+                     onClick={() => setShowClearConfirm(true)}
+                     className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors"
+                     aria-label="Limpar histórico do chat"
+                     title="Limpar histórico"
+                   >
+                     <Trash2 className="w-4 h-4" />
+                   </button>
+                 </div>
                )}
              </div>
 
-            {(aiStatusHint || error) && (
-              <div className="mt-3 space-y-2">
-                {error && (
-                  <div className="text-sm text-destructive border border-destructive/30 bg-destructive/10 rounded-xl px-3 py-2">
-                    {error}
-                  </div>
-                )}
+             {chatBlocked && onOpenPlansTab && (
+               <div className="mt-3">
+                 <div className="text-sm border border-border bg-background/40 text-muted-foreground rounded-xl px-3 py-2 flex flex-wrap items-center gap-2">
+                   <span>
+                     Seu plano de teste terminou. Faça upgrade para voltar a usar o chat.
+                   </span>
+                   <button
+                     type="button"
+                     onClick={onOpenPlansTab}
+                     className="underline underline-offset-4 text-foreground hover:text-primary transition-colors"
+                   >
+                     Fazer upgrade
+                   </button>
+                 </div>
+               </div>
+             )}
 
-                {aiStatusHint && (
-                  <div className="text-sm border border-border bg-background/40 text-muted-foreground rounded-xl px-3 py-2">
-                    {aiStatusHint}
-                  </div>
-                )}
-              </div>
-            )}
+             {(aiStatusHint || error) && (
+               <div className="mt-3 space-y-2">
+                 {error && (
+                   <div className="text-sm text-destructive border border-destructive/30 bg-destructive/10 rounded-xl px-3 py-2">
+                     {error}
+                   </div>
+                 )}
+
+                 {aiStatusHint && (
+                   <div className="text-sm border border-border bg-background/40 text-muted-foreground rounded-xl px-3 py-2">
+                     {aiStatusHint}
+                   </div>
+                 )}
+               </div>
+             )}
 
             <div className="mt-3 text-xs text-muted-foreground">
               A IARA pode cometer erros, é bom revisar as informações na aba “Treinar IA”.
