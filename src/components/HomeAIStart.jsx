@@ -178,6 +178,8 @@ export default function HomeAIStart({
       setClearingHistory(false);
     }
   };
+
+  const send = async () => {
     if (!canSend) return;
 
     const userText = input.trim();
