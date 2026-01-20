@@ -138,13 +138,53 @@ const InputGroup = ({ label, type = "text", placeholder, value, onChange, multil
   );
 };
 
-const CheckboxGroup = ({ label, subLabel, checked, onChange, icon: Icon, priceTag }) => (
-  <div onClick={() => onChange(!checked)} className={`relative flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${checked ? 'bg-orange-500/10 border-orange-500/40' : 'bg-gray-900 border-gray-700 hover:border-gray-600'}`}>
-    <div className={`mt-1 w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${checked ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`}>{checked && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}</div>
+const CheckboxGroup = ({
+  label,
+  subLabel,
+  checked,
+  onChange,
+  icon: Icon,
+  priceTag,
+  disabled = false,
+  locked = false,
+  onLockedClick,
+}) => (
+  <div
+    onClick={() => {
+      if (disabled) {
+        if (locked && onLockedClick) onLockedClick();
+        return;
+      }
+      onChange(!checked);
+    }}
+    className={`relative flex items-start gap-3 p-3 rounded-lg border transition-all ${
+      disabled
+        ? 'bg-gray-900/50 border-gray-700 opacity-60 cursor-not-allowed'
+        : checked
+          ? 'bg-orange-500/10 border-orange-500/40 cursor-pointer'
+          : 'bg-gray-900 border-gray-700 hover:border-gray-600 cursor-pointer'
+    }`}
+  >
+    <div className={`mt-1 w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${checked ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`}>
+      {checked && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+    </div>
     <div className="flex-1">
-      <div className="flex justify-between items-start">
-        <div className="text-sm text-gray-200 font-medium flex items-center gap-2">{Icon && <Icon className="w-4 h-4 text-gray-400" />}{label}</div>
-        {priceTag && <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${checked ? 'bg-green-500/20 text-green-400 border-green-500/20' : 'bg-gray-800 text-gray-400 border-gray-600'}`}>{priceTag}</span>}
+      <div className="flex justify-between items-start gap-3">
+        <div className="text-sm text-gray-200 font-medium flex items-center gap-2">
+          {Icon && <Icon className="w-4 h-4 text-gray-400" />}
+          {label}
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {locked && (
+            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-bold border bg-gray-800 text-gray-300 border-gray-600">
+              <Lock className="w-3 h-3" /> Bloqueado
+            </span>
+          )}
+          {priceTag && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${checked ? 'bg-green-500/20 text-green-400 border-green-500/20' : 'bg-gray-800 text-gray-400 border-gray-600'}`}>{priceTag}</span>
+          )}
+        </div>
       </div>
       {subLabel && <p className="text-xs text-gray-500 mt-1 leading-relaxed">{subLabel}</p>}
     </div>
@@ -470,8 +510,41 @@ function Dashboard({ session }) {
   const [gymData, setGymData] = useState({ gym_name: "", phone: "", pix_key: "", address: "", branches: [], opening_hours: "", pricing_info: "", faq_text: "", tone_of_voice: "Motivador e energético.", observations: "", allow_calls: false, reply_groups: false, reply_audio: true, send_images: false, integrate_agenda: false, recognize_payments: false, omnichannel: false, connection_status: 'disconnected', logo_url: null, email: session.user.email, password: '', needs_reprocessing: true, ai_active: false, ai_active_instagram: false, test_number: '', mass_sender_active: false, mass_sender_sheet_link: '', mass_sender_days: '', mass_sender_hours: '', mass_sender_interval: '5min', use_official_api: false, extra_users_count: 0, instagram_status: 'disconnected' });
   const [initialGymData, setInitialGymData] = useState(null);
   const isTrialExpired = trialInfo.status === 'expired' && subscriptionInfo.plan_type === 'trial_7_days';
+  const forcedTrialPauseRef = useRef(false);
   
-  const handleTrialExpired = async () => { if (isTrialExpired && (gymData.ai_active || connectionStatus === 'connected')) { setConnectionStatus('disconnected'); setConnectionStep('disconnected'); setGymData(prev => ({ ...prev, ai_active: false, connection_status: 'disconnected' })); await callEvolutionManager('logout'); handleSave({ ...gymData, ai_active: false, connection_status: 'disconnected' }); alert("Seu período de teste expirou. A IA foi pausada."); } };
+  const handleTrialExpired = async () => {
+    if (!isTrialExpired) return;
+
+    // Evita loops (ex: re-render, Timer, etc.)
+    if (forcedTrialPauseRef.current) return;
+    forcedTrialPauseRef.current = true;
+
+    try {
+      // Força IA pausada no banco (n8n depende disso)
+      setGymData(prev => ({ ...prev, ai_active: false }));
+      await handleSave({ ...gymData, ai_active: false });
+
+      // (Opcional) se estiver conectado via MonarcaHub, desloga para garantir que não rode nada no trial expirado
+      if (connectionStatus === 'connected') {
+        setConnectionStatus('disconnected');
+        setConnectionStep('disconnected');
+        setGymData(prev => ({ ...prev, connection_status: 'disconnected' }));
+        await callEvolutionManager('logout');
+        await handleSave({ ...gymData, ai_active: false, connection_status: 'disconnected' });
+      }
+    } catch (e) {
+      console.error('Falha ao forçar pausa no trial expirado:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (!isTrialExpired) {
+      forcedTrialPauseRef.current = false;
+      return;
+    }
+    handleTrialExpired();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTrialExpired]);
 
   const normalizeQrSrc = (raw) => {
     if (!raw) return '';
@@ -683,6 +756,12 @@ function Dashboard({ session }) {
 
   const handleSave = async (customData = null) => { const isFullSave = !customData; if (isFullSave) setIsSaving(true); const dataToSave = { user_id: userId, ...(customData || gymData), updated_at: new Date(), needs_reprocessing: true, extra_channels_count: extraChannels, extra_users_count: (customData || gymData).extra_users_count }; delete dataToSave.email; delete dataToSave.password; try { const { error } = await supabaseClient.from('gym_configs').upsert([dataToSave], { onConflict: 'user_id' }); if (error) throw error; if (isFullSave) { alert("Configurações salvas!"); createInstanceOnSave(); setInitialGymData(customData || gymData); } if (isFullSave) setTrainingError(''); } catch (error) { alert("Erro: " + error.message); } finally { if (isFullSave) setIsSaving(false); } };
   const toggleAI = async () => {
+    if (isTrialExpired) {
+      setTrainingError('Seu teste grátis terminou. Faça upgrade para ativar a IA.');
+      setTimeout(() => setTrainingError(''), 5000);
+      return;
+    }
+
     const isWhatsAppConnected = connectionStatus === 'connected' || Boolean(gymData.use_official_api);
 
     if (!gymData.ai_active && !isWhatsAppConnected) {
@@ -846,7 +925,7 @@ function Dashboard({ session }) {
               onOpenConnectionsTab={() => setActiveTab('connections')}
               whatsappUnofficialStatus={connectionStatus}
               whatsappOfficialStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
-              aiStatus={gymData.ai_active ? 'active' : 'inactive'}
+              aiStatus={isTrialExpired ? 'inactive' : (gymData.ai_active ? 'active' : 'inactive')}
               showOnboardingStepsShortcut={false}
               onOpenOnboardingSteps={() => setIsOnboardingModalOpen(true)}
               onToggleAI={toggleAI}
@@ -938,7 +1017,7 @@ function Dashboard({ session }) {
         
         <Card title="Informações Básicas" icon={Dumbbell}><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><InputGroup label="Nome da Academia" value={gymData.gym_name} onChange={(e) => setGymData({...gymData, gym_name: e.target.value})} helpText="Como a IA deve chamar sua academia nas mensagens." /><InputGroup label="Telefone / WhatsApp" value={gymData.phone} onChange={(e) => setGymData({...gymData, phone: e.target.value})} helpText="O número oficial que os alunos entram em contato." /></div><InputGroup label="Chave Pix" value={gymData.pix_key} onChange={(e) => setGymData({...gymData, pix_key: e.target.value})} helpText="A IA enviará essa chave quando o cliente pedir para pagar." /><div className="pt-4 border-t border-gray-700 mt-4"><div className="flex items-center justify-between mb-3"><label className="block text-sm font-medium text-gray-300">Endereços e Filiais</label><div className="flex flex-col items-end"><Button variant="outline" onClick={addBranch} className="text-xs px-2 py-1"><Plus className="w-3 h-3" /> Adicionar</Button><span className="text-[10px] text-orange-400 mt-1 max-w-[200px] text-right">*Se for 1 telefone diferente pra cada endereço é necessário valor mensal adicional (+R$ 150).</span></div></div><div className="space-y-3"><InputGroup label="Endereço Principal (Incluso no Plano Base)" value={gymData.address} onChange={(e) => setGymData({...gymData, address: e.target.value})} helpText="Necessário para a localização no Maps." />{gymData.branches.map((branch) => (<div key={branch.id} className="relative flex gap-2"><MapPin className="absolute left-3 top-3 w-5 h-5 text-orange-500" /><input className="w-full bg-gray-900 border border-orange-500/30 rounded-lg pl-10 p-3 text-gray-100" value={branch.address} placeholder="Endereço da Filial (+ R$ 150)" onChange={(e) => updateBranch(branch.id, e.target.value)} /><button onClick={() => removeBranch(branch.id)} className="p-3 hover:bg-red-500/10 rounded-lg text-red-400"><Trash2 className="w-5 h-5" /></button></div>))}</div></div></Card>
         
-        <Card title="Cérebro da Operação" icon={BrainCircuit}><InputGroup label="Horários" multiline value={gymData.opening_hours} onChange={(e) => setGymData({...gymData, opening_hours: e.target.value})} /><InputGroup label="Preços" multiline value={gymData.pricing_info} onChange={(e) => setGymData({...gymData, pricing_info: e.target.value})} /><InputGroup label="FAQ / Regras" multiline value={gymData.faq_text} onChange={(e) => setGymData({...gymData, faq_text: e.target.value})} /><div className="my-6 grid grid-cols-1 md:grid-cols-2 gap-4"><CheckboxGroup icon={PhoneCall} label="Aceitar ligações via WhatsApp?" subLabel="aceita mas não atende as ligações." checked={gymData.allow_calls} onChange={(val) => setGymData({...gymData, allow_calls: val})} /><CheckboxGroup icon={Users} label="Responder em Grupos?" subLabel="Não recomendado (pode gerar spam)." checked={gymData.reply_groups} onChange={(val) => setGymData({...gymData, reply_groups: val})} /><CheckboxGroup icon={Mic} label="Responder áudio?" subLabel="IA ouve áudio e responde também em áudio. Se desativado sempre responderá em texto." checked={gymData.reply_audio} onChange={(val) => setGymData({...gymData, reply_audio: val})} /><CheckboxGroup icon={ImageIcon} label="Enviar imagens?" subLabel="(insira o link da imagem no bloco Observações)." checked={gymData.send_images} onChange={(val) => setGymData({...gymData, send_images: val})} /><CheckboxGroup icon={Calendar} label="Integrar Agenda (+R$50)" subLabel="Link Google Calendar." checked={gymData.integrate_agenda} onChange={(val) => setGymData({...gymData, integrate_agenda: val})} /><CheckboxGroup icon={DollarSign} label="Reconhecer Pagamentos (+R$50)" subLabel="Lê comprovantes Pix (OCR) - ajuda na baixa de pagamentos integrando-se ao seu sistema ou pode encaminhar para o seu financeiro." checked={gymData.recognize_payments} onChange={(val) => setGymData({...gymData, recognize_payments: val})} /></div><InputGroup label="Observações / Links de Imagens" multiline value={gymData.observations} onChange={(e) => setGymData({...gymData, observations: e.target.value})} helpText="Cole aqui URLs de fotos se a opção 'Enviar Imagens' estiver ativa." />
+        <Card title="Cérebro da Operação" icon={BrainCircuit}><InputGroup label="Horários" multiline value={gymData.opening_hours} onChange={(e) => setGymData({...gymData, opening_hours: e.target.value})} /><InputGroup label="Preços" multiline value={gymData.pricing_info} onChange={(e) => setGymData({...gymData, pricing_info: e.target.value})} /><InputGroup label="FAQ / Regras" multiline value={gymData.faq_text} onChange={(e) => setGymData({...gymData, faq_text: e.target.value})} /><div className="my-6 grid grid-cols-1 md:grid-cols-2 gap-4"><CheckboxGroup icon={PhoneCall} label="Aceitar ligações via WhatsApp?" subLabel="aceita mas não atende as ligações." checked={gymData.allow_calls} onChange={(val) => setGymData({...gymData, allow_calls: val})} disabled={subscriptionInfo?.plan_type === 'trial_7_days'} locked={subscriptionInfo?.plan_type === 'trial_7_days'} onLockedClick={() => setActiveTab('plans')} /><CheckboxGroup icon={Users} label="Responder em Grupos?" subLabel="Não recomendado (pode gerar spam)." checked={gymData.reply_groups} onChange={(val) => setGymData({...gymData, reply_groups: val})} /><CheckboxGroup icon={Mic} label="Responder áudio?" subLabel="IA ouve áudio e responde também em áudio. Se desativado sempre responderá em texto." checked={gymData.reply_audio} onChange={(val) => setGymData({...gymData, reply_audio: val})} disabled={subscriptionInfo?.plan_type === 'trial_7_days'} locked={subscriptionInfo?.plan_type === 'trial_7_days'} onLockedClick={() => setActiveTab('plans')} /><CheckboxGroup icon={ImageIcon} label="Enviar imagens?" subLabel="(insira o link da imagem no bloco Observações)." checked={gymData.send_images} onChange={(val) => setGymData({...gymData, send_images: val})} disabled={subscriptionInfo?.plan_type === 'trial_7_days'} locked={subscriptionInfo?.plan_type === 'trial_7_days'} onLockedClick={() => setActiveTab('plans')} /><CheckboxGroup icon={Calendar} label="Integrar Agenda (+R$50)" subLabel="Link Google Calendar." checked={gymData.integrate_agenda} onChange={(val) => setGymData({...gymData, integrate_agenda: val})} /><CheckboxGroup icon={DollarSign} label="Reconhecer Pagamentos (+R$50)" subLabel="Lê comprovantes Pix (OCR) - ajuda na baixa de pagamentos integrando-se ao seu sistema ou pode encaminhar para o seu financeiro." checked={gymData.recognize_payments} onChange={(val) => setGymData({...gymData, recognize_payments: val})} /></div><InputGroup label="Observações / Links de Imagens" multiline value={gymData.observations} onChange={(e) => setGymData({...gymData, observations: e.target.value})} helpText="Cole aqui URLs de fotos se a opção 'Enviar Imagens' estiver ativa." />
               <div className="mt-6 pt-6 border-t border-gray-700"><h4 className="text-white font-bold mb-4 flex items-center gap-2"><Send className="w-4 h-4 text-blue-400" /> Sistema de Retenção de Alunos</h4>
               <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-4">
                 <h5 className="text-blue-200 font-bold text-sm mb-2">Defina a estratégia</h5>
