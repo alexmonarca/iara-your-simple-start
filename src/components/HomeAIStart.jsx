@@ -217,6 +217,9 @@ export default function HomeAIStart({
         created_at: new Date().toISOString(),
       };
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const resp = await fetch(webhookUrl, {
         method: "POST",
         headers: {
@@ -225,7 +228,8 @@ export default function HomeAIStart({
         },
         mode: "cors",
         body: JSON.stringify(payload),
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
 
       if (!resp.ok) {
         const t = await resp.text().catch(() => "");
@@ -251,18 +255,26 @@ export default function HomeAIStart({
         conversation_id: conversationId,
       });
     } catch (e) {
+      const rawMessage = e?.message || "";
+
+      const friendlyMessage =
+        e?.name === "AbortError"
+          ? "A conexão com a IA demorou demais e expirou. Tente novamente em alguns instantes."
+          : rawMessage.includes("timeout exceeded when trying to connect")
+            ? "O workflow da IA não conseguiu se conectar a um serviço externo (timeout). Verifique o n8n e as credenciais/URLs usadas no fluxo."
+            : rawMessage ||
+              "Erro ao processar a resposta do agente. Verifique o nó ‘Respond to Webhook’ no n8n.";
+
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            e?.message ||
-            "Erro ao processar a resposta do agente. Verifique o nó ‘Respond to Webhook’ no n8n.",
+          content: friendlyMessage,
           isError: true,
           timestamp: new Date().toISOString(),
         },
       ]);
-      setError(e?.message || "Falha ao enviar para o webhook.");
+      setError(friendlyMessage);
     } finally {
       setSending(false);
     }
@@ -449,19 +461,18 @@ export default function HomeAIStart({
                 </span>
               </button>
 
-              {messages.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowClearConfirm(true)}
-                  className="px-4 py-2 rounded-xl border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
-                  aria-label="Limpar histórico do chat"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Limpar histórico
-                </button>
-              )}
+               {showOnboardingStepsShortcut && Boolean(onOpenOnboardingSteps) && (
+                 <button
+                   type="button"
+                   onClick={onOpenOnboardingSteps}
+                   className="px-4 py-2 rounded-xl border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
+                   aria-label="Primeiros passos - Economize aqui"
+                 >
+                   <CheckSquare className="w-4 h-4" />
+                   Primeiros passos - Economize aqui!
+                 </button>
+               )}
 
-              {showOnboardingStepsShortcut && Boolean(onOpenOnboardingSteps) && (
                 <button
                   type="button"
                   onClick={onOpenOnboardingSteps}
@@ -502,8 +513,20 @@ export default function HomeAIStart({
                 aria-label={aiActive ? "IA ativa" : "IA Pausada"}
               >
                 {aiActive ? "IA ativa" : "IA Pausada"}
-              </button>
-            </div>
+               </button>
+
+               {messages.length > 0 && (
+                 <button
+                   type="button"
+                   onClick={() => setShowClearConfirm(true)}
+                   className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors"
+                   aria-label="Limpar histórico do chat"
+                   title="Limpar histórico"
+                 >
+                   <Trash2 className="w-4 h-4" />
+                 </button>
+               )}
+             </div>
 
             {(aiStatusHint || error) && (
               <div className="mt-3 space-y-2">
