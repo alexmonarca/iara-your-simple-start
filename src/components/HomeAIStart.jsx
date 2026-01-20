@@ -461,18 +461,7 @@ export default function HomeAIStart({
                 </span>
               </button>
 
-               {showOnboardingStepsShortcut && Boolean(onOpenOnboardingSteps) && (
-                 <button
-                   type="button"
-                   onClick={onOpenOnboardingSteps}
-                   className="px-4 py-2 rounded-xl border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
-                   aria-label="Primeiros passos - Economize aqui"
-                 >
-                   <CheckSquare className="w-4 h-4" />
-                   Primeiros passos - Economize aqui!
-                 </button>
-               )}
-
+              {showOnboardingStepsShortcut && Boolean(onOpenOnboardingSteps) && (
                 <button
                   type="button"
                   onClick={onOpenOnboardingSteps}
@@ -483,6 +472,7 @@ export default function HomeAIStart({
                   Primeiros passos - Economize aqui!
                 </button>
               )}
+
 
               <button
                 type="button"
