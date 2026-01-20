@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminTrialPanel from './components/admin/AdminTrialPanel.jsx';
 import HomeAIStart from './components/HomeAIStart.jsx';
+import ConnectionsPage from './components/ConnectionsPage.jsx';
+import MidiasPage from './components/MidiasPage.jsx';
 import { supabase as supabaseClient } from '@/lib/supabaseClient';
 import { env } from '@/config/env';
 import { 
@@ -802,7 +804,7 @@ function Dashboard({ session }) {
     }
   }, []);
 
-  const navItems = [ { id: 'dashboard', icon: LayoutDashboard, label: 'Visão Geral' }, { id: 'training', icon: BrainCircuit, label: 'Treinar IA' }, { id: 'plans', icon: CreditCard, label: 'Assinatura' }, { id: 'account', icon: User, label: 'Minha Conta' } ];
+  const navItems = [ { id: 'dashboard', icon: LayoutDashboard, label: 'Visão Geral' }, { id: 'training', icon: BrainCircuit, label: 'Treinar IA' }, { id: 'connections', icon: Smartphone, label: 'Conexões' }, { id: 'midias', icon: ImageIcon, label: 'MídIAs' }, { id: 'plans', icon: CreditCard, label: 'Assinatura' }, { id: 'account', icon: User, label: 'Minha Conta' } ];
 
   const renderContent = () => {
     if (isLoadingData) return <div className="flex items-center justify-center h-64 text-orange-400"><Loader2 className="w-8 h-8 animate-spin mr-2"/> Carregando...</div>;
@@ -820,12 +822,9 @@ function Dashboard({ session }) {
               wantsOfficialApi={Boolean(gymData.use_official_api_coexistencia || gymData.use_official_api_somente)}
               onOpenPlansTab={() => setActiveTab('plans')}
               onOpenTrainTab={() => setActiveTab('training')}
-              onOpenWhatsAppConnectUnofficial={handleConnectNewNumber}
-              onOpenWhatsAppConnectOfficial={handleMetaEmbeddedSignup}
+              onOpenConnectionsTab={() => setActiveTab('connections')}
               whatsappUnofficialStatus={connectionStatus}
               whatsappOfficialStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
-              onWhatsAppDisconnect={handleLogout}
-              onWhatsAppRestart={handleRestart}
               aiStatus={gymData.ai_active ? 'active' : 'inactive'}
               showOnboardingStepsShortcut={false}
               onOpenOnboardingSteps={() => setIsOnboardingModalOpen(true)}
@@ -833,7 +832,27 @@ function Dashboard({ session }) {
             />
           </div>
         );
-      
+      case 'connections':
+        return (
+          <ConnectionsPage
+            planName={displayPlanName === 'Trial Grátis' ? 'Plano GRATUITO' : displayPlanName}
+            isTrialPlan={displayPlanName === 'Trial Grátis' || subscriptionInfo?.plan_type === 'trial_7_days'}
+            wantsOfficialApi={Boolean(gymData.use_official_api_coexistencia || gymData.use_official_api_somente)}
+            onOpenPlansTab={() => setActiveTab('plans')}
+            onOpenWhatsAppConnectUnofficial={handleConnectNewNumber}
+            whatsappUnofficialStatus={connectionStatus}
+            onOpenWhatsAppConnectOfficial={handleMetaEmbeddedSignup}
+            whatsappOfficialStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
+            onWhatsAppDisconnect={handleLogout}
+            onWhatsAppRestart={handleRestart}
+          />
+        );
+
+      case 'midias':
+        return (
+          <MidiasPage onOpenPlansTab={() => setActiveTab('plans')} />
+        );
+
       // ... Outras abas (training, plans, account, admin) ...
       case 'training': 
         return <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-right-4 duration-300"><div className="lg:col-span-2 space-y-6">
