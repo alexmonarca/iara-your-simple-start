@@ -599,6 +599,13 @@ export default function HomeAIStart({
               <button
                 type="button"
                 onClick={() => {
+                  if (chatBlocked) {
+                    setAiStatusHint(
+                      "Seu teste grátis terminou. Faça upgrade para ativar a IA."
+                    );
+                    if (onOpenPlansTab) onOpenPlansTab();
+                    return;
+                  }
                   if (aiActive) {
                     setShowPauseConfirm(true);
                     return;
@@ -616,7 +623,9 @@ export default function HomeAIStart({
                   "px-4 py-2 rounded-xl border text-sm select-none transition-colors " +
                   (aiActive
                     ? "bg-success/10 text-success border-success/30 hover:bg-success/20 cursor-pointer"
-                    : "bg-warning/10 text-warning border-warning/30 hover:bg-background/40")
+                    : chatBlocked
+                      ? "bg-muted/30 text-muted-foreground border-border cursor-not-allowed"
+                      : "bg-warning/10 text-warning border-warning/30 hover:bg-background/40")
                 }
                 aria-label={aiActive ? "IA ativa" : "IA Pausada"}
               >
