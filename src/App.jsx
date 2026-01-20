@@ -682,7 +682,28 @@ function Dashboard({ session }) {
   }, [userId, session.user.email]);
 
   const handleSave = async (customData = null) => { const isFullSave = !customData; if (isFullSave) setIsSaving(true); const dataToSave = { user_id: userId, ...(customData || gymData), updated_at: new Date(), needs_reprocessing: true, extra_channels_count: extraChannels, extra_users_count: (customData || gymData).extra_users_count }; delete dataToSave.email; delete dataToSave.password; try { const { error } = await supabaseClient.from('gym_configs').upsert([dataToSave], { onConflict: 'user_id' }); if (error) throw error; if (isFullSave) { alert("Configurações salvas!"); createInstanceOnSave(); setInitialGymData(customData || gymData); } if (isFullSave) setTrainingError(''); } catch (error) { alert("Erro: " + error.message); } finally { if (isFullSave) setIsSaving(false); } };
-  const toggleAI = async () => { if (!gymData.ai_active && connectionStatus !== 'connected') { setTrainingError('Erro: Conecte o WhatsApp (QR Code) primeiro.'); setTimeout(() => setTrainingError(''), 5000); return; } if (!gymData.ai_active) { if (!gymData.opening_hours || gymData.opening_hours.length < 5) { setTrainingError('Erro: Preencha "Treinar IA" primeiro.'); setTimeout(() => setTrainingError(''), 5000); return; } } setTrainingError(''); const newState = !gymData.ai_active; setGymData(prev => ({ ...prev, ai_active: newState })); await handleSave({ ...gymData, ai_active: newState }); };
+  const toggleAI = async () => {
+    const isWhatsAppConnected = connectionStatus === 'connected' || Boolean(gymData.use_official_api);
+
+    if (!gymData.ai_active && !isWhatsAppConnected) {
+      setTrainingError('Erro: Conecte o WhatsApp (QR Code) primeiro.');
+      setTimeout(() => setTrainingError(''), 5000);
+      return;
+    }
+
+    if (!gymData.ai_active) {
+      if (!gymData.opening_hours || gymData.opening_hours.length < 5) {
+        setTrainingError('Erro: Preencha "Treinar IA" primeiro.');
+        setTimeout(() => setTrainingError(''), 5000);
+        return;
+      }
+    }
+
+    setTrainingError('');
+    const newState = !gymData.ai_active;
+    setGymData(prev => ({ ...prev, ai_active: newState }));
+    await handleSave({ ...gymData, ai_active: newState });
+  };
   const toggleInstagramAI = async () => { if (!gymData.ai_active_instagram && extraChannels < 1) { setInstagramError('Erro: Contrate Canal Extra na aba "Assinatura".'); setTimeout(() => setInstagramError(''), 5000); return; } setInstagramError(''); const newState = !gymData.ai_active_instagram; setGymData(prev => ({ ...prev, ai_active_instagram: newState })); await handleSave({ ...gymData, ai_active_instagram: newState }); };
   
   // CÁLCULO DE PREÇO (COM DESCONTO ONBOARDING)
