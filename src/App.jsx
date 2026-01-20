@@ -850,7 +850,7 @@ function Dashboard({ session }) {
 
       case 'midias':
         return (
-          <MidiasPage onOpenPlansTab={() => setActiveTab('plans')} />
+          <MidiasPage onOpenPlansTab={() => setActiveTab('plans')} hasMediaUpgrade={gymData.ia_gestor_midias} />
         );
 
       // ... Outras abas (training, plans, account, admin) ...
@@ -1004,6 +1004,8 @@ function Dashboard({ session }) {
         <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
           <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'dashboard' ? 'bg-orange-500/10 text-orange-400' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}><LayoutDashboard className="w-5 h-5" /> Visão Geral</button>
           <button onClick={() => setActiveTab('training')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'training' ? 'bg-orange-500/10 text-orange-400' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}><BrainCircuit className="w-5 h-5" /> Treinar IA</button>
+          <button onClick={() => setActiveTab('connections')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'connections' ? 'bg-orange-500/10 text-orange-400' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}><Smartphone className="w-5 h-5" /> Conexões</button>
+          <button onClick={() => setActiveTab('midias')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'midias' ? 'bg-orange-500/10 text-orange-400' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}><ImageIcon className="w-5 h-5" /> MídIAs</button>
           <button onClick={() => setActiveTab('plans')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'plans' ? 'bg-orange-500/10 text-orange-400' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}><CreditCard className="w-5 h-5" /> Assinatura</button>
           <button onClick={() => setActiveTab('account')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'account' ? 'bg-orange-500/10 text-orange-400' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}><User className="w-5 h-5" /> Minha Conta</button>
         </nav>

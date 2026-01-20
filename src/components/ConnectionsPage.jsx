@@ -6,6 +6,9 @@ import {
   MessageCircle,
   RefreshCw,
   Unplug,
+  ChevronDown,
+  ChevronUp,
+  Instagram as InstagramIcon,
 } from "lucide-react";
 
 function StatusBadge({ connected, labelConnected = "Online", labelDisconnected = "Offline" }) {
@@ -57,6 +60,7 @@ export default function ConnectionsPage({
   onWhatsAppRestart,
 }) {
   const [showAlreadyConnected, setShowAlreadyConnected] = useState(false);
+  const [tutorialCollapsed, setTutorialCollapsed] = useState(false);
 
   const whatsappUnofficialConnected = (whatsappUnofficialStatus ?? "disconnected") === "connected";
   const whatsappOfficialConnected = (whatsappOfficialStatus ?? "disconnected") === "connected";
@@ -73,6 +77,10 @@ export default function ConnectionsPage({
   };
 
   const openOfficialConnect = () => {
+    onOpenWhatsAppConnectOfficial?.();
+  };
+
+  const openInstagramConnect = () => {
     onOpenWhatsAppConnectOfficial?.();
   };
 
@@ -123,20 +131,23 @@ export default function ConnectionsPage({
       </header>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-3xl border border-border bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))] overflow-hidden">
+        <div className="rounded-3xl border border-border bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))] overflow-hidden h-fit">
           <div className="p-5 border-b border-border">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 cursor-pointer" onClick={() => setTutorialCollapsed(!tutorialCollapsed)}>
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold text-foreground">Tutorial rápido</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Passo a passo para conectar o WhatsApp sem poluir o Chat.
                 </p>
               </div>
-              <StatusBadge connected={whatsappConnected} />
+              <div className="flex items-center gap-2">
+                <StatusBadge connected={whatsappConnected} />
+                {tutorialCollapsed ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronUp className="w-5 h-5 text-muted-foreground" />}
+              </div>
             </div>
           </div>
 
-          <div className="p-5 space-y-3">
+          {!tutorialCollapsed && (<div className="p-5 space-y-3">
             {checklist.map((s) => (
               <Step key={s.id} done={s.done} title={s.title}>
                 {s.description}
@@ -159,7 +170,7 @@ export default function ConnectionsPage({
                 />
               </div>
             </div>
-          </div>
+          </div>)}
         </div>
 
         <div className="rounded-3xl border border-border bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))]">
@@ -256,6 +267,31 @@ export default function ConnectionsPage({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-border bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))]">
+          <div className="p-5 border-b border-border">
+            <h2 className="text-lg font-semibold text-foreground">Instagram</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Conecte e gerencie seu canal de Direct.</p>
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="rounded-2xl border border-border bg-background/40 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <InstagramIcon className="w-4 h-4 text-primary" />
+                  <div className="text-sm font-medium text-foreground">Instagram API (Meta)</div>
+                </div>
+                <StatusBadge connected={false} />
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground leading-relaxed">Conecte o Instagram via API Oficial da Meta para gerenciar mensagens diretas.</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={openInstagramConnect} className="h-10 px-4 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2">
+                  Conectar Instagram
+                  <RefreshCw className="w-4 h-4 opacity-70" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
