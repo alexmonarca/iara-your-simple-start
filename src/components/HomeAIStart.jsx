@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles, Send, Maximize2, Minimize2, CheckSquare, Trash2 } from "lucide-react";
+import {
+  Sparkles,
+  Send,
+  Maximize2,
+  Minimize2,
+  CheckSquare,
+  Trash2,
+  ChevronDown,
+  ArrowUpRight,
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 /**
@@ -40,6 +49,9 @@ export default function HomeAIStart({
 
   const messagesEndRef = useRef(null);
   const composerRef = useRef(null);
+  const modelMenuRef = useRef(null);
+
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
 
   const chatBlocked = Boolean(trialExpired);
 
@@ -66,6 +78,17 @@ export default function HomeAIStart({
     });
     return () => cancelAnimationFrame(id);
   }, [historyMinimized]);
+
+  useEffect(() => {
+    if (!modelMenuOpen) return;
+    const onDocClick = (e) => {
+      if (!modelMenuRef.current) return;
+      if (modelMenuRef.current.contains(e.target)) return;
+      setModelMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [modelMenuOpen]);
 
   const parseWebhookResponse = (rawText) => {
     // n8n às vezes devolve JSON com caracteres de controle (\n, etc). Sanitizamos.
@@ -309,25 +332,31 @@ export default function HomeAIStart({
   const whatsappConnected = whatsappStatus === "connected";
   const aiActive = aiStatus === "active";
 
-  const aiModelOptions = useMemo(() => {
+  const planTier = useMemo(() => {
     const p = String(planName || "").toLowerCase();
+    if (p.includes("premium")) return "premium";
+    if (p.includes("start") || p.includes("base")) return "start";
     // níveis: Trial < Start < Premium
-    if (p.includes("gratuito") || p.includes("trial")) return ["Trial"];
-    if (p.includes("premium")) return ["Trial", "Start", "Premium"];
-    if (p.includes("start") || p.includes("base")) return ["Trial", "Start"];
-    return ["Trial"]; // fallback seguro
+    return "trial";
   }, [planName]);
 
-  const [aiModel, setAiModel] = useState(() => aiModelOptions[aiModelOptions.length - 1] || "Trial");
+  const availableModels = useMemo(() => {
+    if (planTier === "premium") return ["Trial", "Start", "Premium"];
+    if (planTier === "start") return ["Start"]; // não pode voltar para Trial
+    return ["Trial"]; // trial/gratuito
+  }, [planTier]);
+
+  const allModels = useMemo(() => ["Trial", "Start", "Premium"], []);
+
+  const [aiModel, setAiModel] = useState(() => availableModels[availableModels.length - 1] || "Trial");
 
   useEffect(() => {
-    // garante consistência se o plano mudar
-    const next = aiModelOptions.includes(aiModel)
+    const next = availableModels.includes(aiModel)
       ? aiModel
-      : aiModelOptions[aiModelOptions.length - 1] || "Trial";
+      : availableModels[availableModels.length - 1] || "Trial";
     setAiModel(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiModelOptions.join("|")]);
+  }, [availableModels.join("|")]);
 
   return (
     <section className="min-h-[70vh] flex flex-col items-center justify-center px-4">
@@ -370,11 +399,19 @@ export default function HomeAIStart({
               </div>
             )}
 
-            {messages.length > 0 && historyMinimized && (
-              <div className="mb-4 rounded-2xl px-4 py-3 text-sm border border-border bg-background/40 text-muted-foreground">
-                Abrir Histórico.
-              </div>
-            )}
+             {messages.length > 0 && historyMinimized && (
+               <button
+                 type="button"
+                 onClick={() => {
+                   setHistoryMinimized(false);
+                   setTimeout(() => composerRef.current?.focus(), 0);
+                 }}
+                 className="mb-4 w-full text-left rounded-2xl px-4 py-3 text-sm border border-border bg-background/40 text-muted-foreground hover:bg-background/60 transition-colors"
+                 aria-label="Abrir histórico"
+               >
+                 Abrir Histórico.
+               </button>
+             )}
 
             {messages.length > 0 && !historyMinimized && (
               <div className="mb-4 max-h-[46vh] overflow-y-auto pr-1 space-y-3 chat-scroll">
@@ -575,19 +612,78 @@ export default function HomeAIStart({
 
                {messages.length > 0 && (
                  <div className="inline-flex items-center gap-2">
-                   <select
-                     value={aiModel}
-                     onChange={(e) => setAiModel(e.target.value)}
-                     className="h-10 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm px-3"
-                     aria-label="Modelo da IA"
-                     title="Modelo da IA (de acordo com seu plano)"
-                   >
-                     {aiModelOptions.map((opt) => (
-                       <option key={opt} value={opt}>
-                         {opt}
-                       </option>
-                     ))}
-                   </select>
+                   <div ref={modelMenuRef} className="relative">
+                     <button
+                       type="button"
+                       onClick={() => setModelMenuOpen((v) => !v)}
+                       className="h-10 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm px-3 inline-flex items-center gap-2"
+                       aria-label="Modelo da IA"
+                       title="Modelo da IA (de acordo com seu plano)"
+                     >
+                       <span className="font-medium">{aiModel}</span>
+                       <ChevronDown className="w-4 h-4 opacity-70" />
+                     </button>
+
+                     {modelMenuOpen && (
+                       <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-border bg-card shadow-xl overflow-hidden z-20">
+                         {allModels.map((model) => {
+                           const isAvailable = availableModels.includes(model);
+                           const isActive = aiModel === model;
+
+                           const isUpgradeLocked = !isAvailable && planTier !== "premium" && (model === "Start" || model === "Premium");
+                           const isDowngradeLocked = !isAvailable && planTier !== "trial" && model === "Trial";
+
+                           const label =
+                             isUpgradeLocked
+                               ? "Fazer upgrade"
+                               : isDowngradeLocked
+                                 ? "Indisponível"
+                                 : "Selecionar";
+
+                           return (
+                             <button
+                               key={model}
+                               type="button"
+                               onClick={() => {
+                                 if (isAvailable) {
+                                   setAiModel(model);
+                                   setModelMenuOpen(false);
+                                   return;
+                                 }
+                                 if (isUpgradeLocked && onOpenPlansTab) {
+                                   setModelMenuOpen(false);
+                                   onOpenPlansTab();
+                                 }
+                               }}
+                               disabled={!isAvailable && !isUpgradeLocked}
+                               className={
+                                 "w-full px-3 py-2.5 text-sm flex items-center justify-between gap-2 text-left transition-colors " +
+                                 (isActive
+                                   ? "bg-primary/10 text-foreground"
+                                   : "hover:bg-accent") +
+                                 (!isAvailable && !isUpgradeLocked
+                                   ? " opacity-60 cursor-not-allowed"
+                                   : "")
+                               }
+                             >
+                               <span
+                                 className={
+                                   "" +
+                                   (isDowngradeLocked ? " line-through" : "")
+                                 }
+                               >
+                                 {model}
+                               </span>
+                               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                 {isUpgradeLocked && <ArrowUpRight className="w-3.5 h-3.5" />}
+                                 <span>{label}</span>
+                               </span>
+                             </button>
+                           );
+                         })}
+                       </div>
+                     )}
+                   </div>
 
                    <button
                      type="button"
