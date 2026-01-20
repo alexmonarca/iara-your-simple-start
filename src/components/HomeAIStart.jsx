@@ -607,6 +607,10 @@ export default function HomeAIStart({
                     setAiStatusHint("Para ativar a IA, conecte o WhatsApp primeiro.");
                     return;
                   }
+
+                  // WhatsApp online => pode ativar a IA (persistência acontece no callback do App)
+                  setAiStatusHint("");
+                  if (onToggleAI) onToggleAI();
                 }}
                 className={
                   "px-4 py-2 rounded-xl border text-sm select-none transition-colors " +
