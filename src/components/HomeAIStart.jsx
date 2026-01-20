@@ -32,6 +32,11 @@ export default function HomeAIStart({
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
+  // Histórico minimizado por padrão (para parecer um “chat novo” ao abrir)
+  const [historyMinimized, setHistoryMinimized] = useState(false);
+  const [historyLimit, setHistoryLimit] = useState(50);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+
   const messagesEndRef = useRef(null);
   const composerRef = useRef(null);
 
@@ -45,8 +50,18 @@ export default function HomeAIStart({
   );
 
   useEffect(() => {
+    if (historyMinimized) return;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending, loadingHistory]);
+  }, [messages, sending, loadingHistory, historyMinimized]);
+
+  useEffect(() => {
+    if (historyMinimized) return;
+    // Quando o usuário “abre” o histórico, vai direto pro final.
+    const id = requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [historyMinimized]);
 
   const parseWebhookResponse = (rawText) => {
     // n8n às vezes devolve JSON com caracteres de controle (\n, etc). Sanitizamos.
@@ -98,33 +113,36 @@ export default function HomeAIStart({
     if (insertError) throw insertError;
   };
 
-  const loadHistory = async () => {
+  const loadHistory = async (limit = historyLimit) => {
     if (!user?.id) return;
 
     setLoadingHistory(true);
     setError("");
 
     try {
-      // Pega as últimas mensagens do usuário para restaurar após F5
+      // Busca as ÚLTIMAS mensagens (ordem desc) e depois inverte p/ renderizar em ordem cronológica.
       const { data, error: selectError } = await supabase
         .from("chat_messages")
         .select("conversation_id, role, content, created_at")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: true })
-        .limit(200);
+        .order("created_at", { ascending: false })
+        .limit(limit);
 
       if (selectError) throw selectError;
 
-      const restored = (data ?? []).map((m) => ({
+      const ordered = [...(data ?? [])].reverse();
+
+      const restored = ordered.map((m) => ({
         role: m.role,
         content: m.content,
         timestamp: m.created_at,
       }));
 
       setMessages(restored);
+      setHistoryHasMore((data ?? []).length === limit);
 
       const lastConversationId =
-        data && data.length > 0 ? data[data.length - 1].conversation_id : null;
+        data && data.length > 0 ? data[0].conversation_id : null;
 
       // Se já existe histórico, seguimos na última conversa; senão, criamos uma nova.
       setConversationId(
@@ -132,6 +150,9 @@ export default function HomeAIStart({
           crypto?.randomUUID?.() ??
           `${Date.now()}-${Math.random()}`
       );
+
+      // Minimiza automaticamente quando há histórico (pra “parecer novo chat” ao abrir)
+      if (restored.length > 0) setHistoryMinimized(true);
     } catch (e) {
       // Não travar a UI: só avisar.
       setError(
@@ -148,11 +169,11 @@ export default function HomeAIStart({
 
   useEffect(() => {
     // Carrega histórico assim que o usuário estiver autenticado.
-    // Evita re-carregar em cada render.
+    // Também recarrega quando o usuário pedir “carregar mais histórico”.
     if (!user?.id) return;
-    loadHistory();
+    loadHistory(historyLimit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, historyLimit]);
 
   const clearHistory = async () => {
     if (!user?.id || clearingHistory) return;
@@ -324,8 +345,26 @@ export default function HomeAIStart({
               </div>
             )}
 
-            {messages.length > 0 && (
+            {messages.length > 0 && historyMinimized && (
+              <div className="mb-4 rounded-2xl px-4 py-3 text-sm border border-border bg-background/40 text-muted-foreground">
+                Histórico oculto. Clique na caixa de texto abaixo para continuar no final.
+              </div>
+            )}
+
+            {messages.length > 0 && !historyMinimized && (
               <div className="mb-4 max-h-[46vh] overflow-y-auto pr-1 space-y-3 chat-scroll">
+                {historyHasMore && (
+                  <div className="sticky top-0 z-10 pb-2 bg-card/70 supports-[backdrop-filter]:bg-card/50 backdrop-blur">
+                    <button
+                      type="button"
+                      onClick={() => setHistoryLimit((v) => v + 50)}
+                      className="w-full rounded-xl px-3 py-2 text-sm border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors"
+                    >
+                      Carregar mais histórico
+                    </button>
+                  </div>
+                )}
+
                 {messages.map((m, idx) => {
                   const isUser = m.role === "user";
                   return (
@@ -364,11 +403,15 @@ export default function HomeAIStart({
             {/* Input */}
             <div className="flex items-end gap-3">
               <div className="flex-1">
-                <textarea
-                  ref={composerRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
+                  <textarea
+                    ref={composerRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onFocus={() => {
+                      if (!historyMinimized) return;
+                      setHistoryMinimized(false);
+                    }}
+                    onKeyDown={(e) => {
                     // Enter = enviar. Ctrl/Cmd + Enter = quebra de linha.
                     if (
                       e.key === "Enter" &&
