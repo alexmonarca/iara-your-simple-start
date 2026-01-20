@@ -815,6 +815,7 @@ function Dashboard({ session }) {
               user={{ id: userId, email: session?.user?.email }}
               webhookUrl={env.n8nAiWebhookUrl}
               planName={displayPlanName === 'Trial Grátis' ? 'Plano GRATUITO' : displayPlanName}
+              trialExpired={subscriptionInfo?.plan_type === 'trial_7_days' && trialInfo?.status === 'expired'}
               onOpenPlansTab={() => setActiveTab('plans')}
               onOpenTrainTab={() => setActiveTab('training')}
               onOpenWhatsAppConnect={displayPlanName === 'Trial Grátis' ? handleConnectNewNumber : handleMetaEmbeddedSignup}
