@@ -19,28 +19,13 @@ export default function HomeAIStart({
   user,
   webhookUrl,
   onOpenTrainTab,
-  planName,
   onOpenPlansTab,
+  onOpenConnectionsTab,
+  planName,
 
-  // WhatsApp (MonarcaHub / Evolution)
-  onOpenWhatsAppConnectUnofficial,
+  // WhatsApp status (para validar ativação da IA)
   whatsappUnofficialStatus,
-
-  // WhatsApp (API Oficial Meta)
-  onOpenWhatsAppConnectOfficial,
   whatsappOfficialStatus,
-
-  // Compat (props antigas)
-  onOpenWhatsAppConnect,
-  whatsappStatus,
-
-  // Preferências/estado
-  wantsOfficialApi,
-  isTrialPlan,
-
-  // Ações de gestão (apenas quando já conectado no Trial)
-  onWhatsAppDisconnect,
-  onWhatsAppRestart,
 
   aiStatus,
   showOnboardingStepsShortcut,
@@ -60,7 +45,6 @@ export default function HomeAIStart({
   const [aiStatusHint, setAiStatusHint] = useState("");
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [showWhatsAppConnectedModal, setShowWhatsAppConnectedModal] = useState(false);
 
   // Histórico minimizado por padrão (para parecer um “chat novo” ao abrir)
   const [historyMinimized, setHistoryMinimized] = useState(false);
@@ -350,28 +334,12 @@ export default function HomeAIStart({
   };
 
   const whatsappUnofficialConnected =
-    (whatsappUnofficialStatus ?? whatsappStatus) === "connected";
-  const whatsappOfficialConnected = whatsappOfficialStatus === "connected";
+    (whatsappUnofficialStatus ?? "disconnected") === "connected";
+  const whatsappOfficialConnected =
+    (whatsappOfficialStatus ?? "disconnected") === "connected";
   const whatsappConnected = whatsappUnofficialConnected || whatsappOfficialConnected;
 
   const aiActive = aiStatus === "active";
-
-  const showOfficialConnect = !isTrialPlan && Boolean(wantsOfficialApi);
-  const unofficialConnectLabel = showOfficialConnect
-    ? "Conectar WhatsApp (MonarcaHub)"
-    : "Conectar WhatsApp";
-
-  const openUnofficialConnect = () => {
-    if (isTrialPlan && whatsappUnofficialConnected) {
-      setShowWhatsAppConnectedModal(true);
-      return;
-    }
-    (onOpenWhatsAppConnectUnofficial ?? onOpenWhatsAppConnect)?.();
-  };
-
-  const openOfficialConnect = () => {
-    (onOpenWhatsAppConnectOfficial ?? onOpenWhatsAppConnect)?.();
-  };
 
   const planTier = useMemo(() => {
     const p = String(planName || "").toLowerCase();
@@ -580,52 +548,32 @@ export default function HomeAIStart({
               </button>
             </div>
 
-             <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onOpenTrainTab}
-                className="px-4 py-2 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm"
-              >
-                Treinar IA
-              </button>
+              <div className="mt-4 flex flex-wrap gap-2">
+               <button
+                 type="button"
+                 onClick={onOpenTrainTab}
+                 className="px-4 py-2 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm"
+               >
+                 Treinar IA
+               </button>
 
-              <button
-                type="button"
-                onClick={openUnofficialConnect}
-                className="px-4 py-2 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
-              >
-                <span>{unofficialConnectLabel}</span>
-                <span
-                  className={
-                    "text-[10px] px-2 py-0.5 rounded-full border " +
-                    (whatsappUnofficialConnected
-                      ? "bg-success/10 text-success border-success/30"
-                      : "bg-muted/30 text-muted-foreground border-border")
-                  }
-                >
-                  {whatsappUnofficialConnected ? "Conectado" : "Offline"}
-                </span>
-              </button>
-
-              {showOfficialConnect && (
-                <button
-                  type="button"
-                  onClick={openOfficialConnect}
-                  className="px-4 py-2 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
-                >
-                  <span>Conectar WhatsApp (API Oficial)</span>
-                  <span
-                    className={
-                      "text-[10px] px-2 py-0.5 rounded-full border " +
-                      (whatsappOfficialConnected
-                        ? "bg-success/10 text-success border-success/30"
-                        : "bg-muted/30 text-muted-foreground border-border")
-                    }
-                  >
-                    {whatsappOfficialConnected ? "Conectado" : "Offline"}
-                  </span>
-                </button>
-              )}
+               <button
+                 type="button"
+                 onClick={onOpenConnectionsTab}
+                 className="px-4 py-2 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
+               >
+                 <span>Conexões</span>
+                 <span
+                   className={
+                     "text-[10px] px-2 py-0.5 rounded-full border " +
+                     (whatsappConnected
+                       ? "bg-success/10 text-success border-success/30"
+                       : "bg-muted/30 text-muted-foreground border-border")
+                   }
+                 >
+                   {whatsappConnected ? "Online" : "Offline"}
+                 </span>
+               </button>
 
               {showOnboardingStepsShortcut && Boolean(onOpenOnboardingSteps) && (
                 <button
@@ -838,59 +786,6 @@ export default function HomeAIStart({
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modal: já conectado (Trial) */}
-        {showWhatsAppConnectedModal && (
-          <div
-            onClick={() => setShowWhatsAppConnectedModal(false)}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-            role="dialog"
-            aria-modal="true"
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-md p-6 rounded-2xl border border-border bg-card shadow-2xl"
-            >
-              <h2 className="text-2xl font-semibold mb-3 text-foreground">
-                Parece que você já está conectado!
-              </h2>
-              <p className="text-muted-foreground mb-4">
-                Você pode desconectar para vincular outro número, ou reiniciar a conexão.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowWhatsAppConnectedModal(false);
-                    onWhatsAppDisconnect?.();
-                  }}
-                  disabled={!onWhatsAppDisconnect}
-                  className="flex-1 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-accent transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  Desconectar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowWhatsAppConnectedModal(false);
-                    onWhatsAppRestart?.();
-                  }}
-                  disabled={!onWhatsAppRestart}
-                  className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  Reiniciar
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowWhatsAppConnectedModal(false)}
-                className="mt-4 w-full px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-accent transition-colors"
-              >
-                Fechar
-              </button>
             </div>
           </div>
         )}
