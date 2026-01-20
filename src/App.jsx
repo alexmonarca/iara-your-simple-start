@@ -819,7 +819,7 @@ function Dashboard({ session }) {
               onOpenPlansTab={() => setActiveTab('plans')}
               onOpenTrainTab={() => setActiveTab('training')}
               onOpenWhatsAppConnect={displayPlanName === 'Trial Grátis' ? handleConnectNewNumber : handleMetaEmbeddedSignup}
-              whatsappStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
+              whatsappStatus={gymData.use_official_api ? 'connected' : connectionStatus}
               aiStatus={gymData.ai_active ? 'active' : 'inactive'}
               showOnboardingStepsShortcut={false}
               onOpenOnboardingSteps={() => setIsOnboardingModalOpen(true)}
