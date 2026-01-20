@@ -816,10 +816,16 @@ function Dashboard({ session }) {
               webhookUrl={env.n8nAiWebhookUrl}
               planName={displayPlanName === 'Trial Grátis' ? 'Plano GRATUITO' : displayPlanName}
               trialExpired={subscriptionInfo?.plan_type === 'trial_7_days' && trialInfo?.status === 'expired'}
+              isTrialPlan={displayPlanName === 'Trial Grátis' || subscriptionInfo?.plan_type === 'trial_7_days'}
+              wantsOfficialApi={Boolean(gymData.use_official_api_coexistencia || gymData.use_official_api_somente)}
               onOpenPlansTab={() => setActiveTab('plans')}
               onOpenTrainTab={() => setActiveTab('training')}
-              onOpenWhatsAppConnect={displayPlanName === 'Trial Grátis' ? handleConnectNewNumber : handleMetaEmbeddedSignup}
-              whatsappStatus={gymData.use_official_api ? 'connected' : connectionStatus}
+              onOpenWhatsAppConnectUnofficial={handleConnectNewNumber}
+              onOpenWhatsAppConnectOfficial={handleMetaEmbeddedSignup}
+              whatsappUnofficialStatus={connectionStatus}
+              whatsappOfficialStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
+              onWhatsAppDisconnect={handleLogout}
+              onWhatsAppRestart={handleRestart}
               aiStatus={gymData.ai_active ? 'active' : 'inactive'}
               showOnboardingStepsShortcut={false}
               onOpenOnboardingSteps={() => setIsOnboardingModalOpen(true)}
