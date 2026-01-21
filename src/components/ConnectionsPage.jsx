@@ -6,10 +6,11 @@ import {
   MessageCircle,
   RefreshCw,
   Unplug,
-  ChevronDown,
-  ChevronUp,
   Instagram as InstagramIcon,
 } from "lucide-react";
+
+import CollapsibleCard from "./connections/CollapsibleCard";
+import ConversationsChatCard from "./connections/ConversationsChatCard";
 
 function StatusBadge({ connected, labelConnected = "Online", labelDisconnected = "Offline" }) {
   return (
@@ -61,6 +62,7 @@ export default function ConnectionsPage({
 }) {
   const [showAlreadyConnected, setShowAlreadyConnected] = useState(false);
   const [tutorialCollapsed, setTutorialCollapsed] = useState(false);
+  const [conversationsCollapsed, setConversationsCollapsed] = useState(false);
 
   const whatsappUnofficialConnected = (whatsappUnofficialStatus ?? "disconnected") === "connected";
   const whatsappOfficialConnected = (whatsappOfficialStatus ?? "disconnected") === "connected";
@@ -130,50 +132,52 @@ export default function ConnectionsPage({
         </div>
       </header>
 
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-3xl border border-border bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))] overflow-hidden h-fit">
-          <div className="p-5 border-b border-border">
-            <div className="flex items-center justify-between gap-3 cursor-pointer" onClick={() => setTutorialCollapsed(!tutorialCollapsed)}>
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold text-foreground">Tutorial rápido</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Passo a passo para conectar o WhatsApp sem poluir o Chat.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <StatusBadge connected={whatsappConnected} />
-                {tutorialCollapsed ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronUp className="w-5 h-5 text-muted-foreground" />}
+      <section className="flex flex-col lg:flex-row gap-6">
+        {/* Coluna esquerda (desktop): cards colapsáveis */}
+        <div className="flex-1 space-y-6">
+          <CollapsibleCard
+            title="Tutorial rápido"
+            description="Passo a passo para conectar o WhatsApp sem poluir o Chat."
+            collapsed={tutorialCollapsed}
+            onToggle={() => setTutorialCollapsed((v) => !v)}
+            rightSlot={<StatusBadge connected={whatsappConnected} />}
+          >
+            <div className="space-y-3">
+              {checklist.map((s) => (
+                <Step key={s.id} done={s.done} title={s.title}>
+                  {s.description}
+                </Step>
+              ))}
+
+              <div className="mt-2 rounded-2xl border border-border bg-background/40 overflow-hidden">
+                <div className="px-4 py-3 border-b border-border">
+                  <div className="text-sm font-medium text-foreground">Vídeo</div>
+                  <div className="text-xs text-muted-foreground">Veja o passo a passo completo.</div>
+                </div>
+                <div className="aspect-video w-full bg-black">
+                  <iframe
+                    className="w-full h-full"
+                    src="https://www.youtube.com/embed/2rgyPJzZXQg"
+                    title="Tutorial Conexões"
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          </CollapsibleCard>
 
-          {!tutorialCollapsed && (<div className="p-5 space-y-3">
-            {checklist.map((s) => (
-              <Step key={s.id} done={s.done} title={s.title}>
-                {s.description}
-              </Step>
-            ))}
-
-            <div className="mt-2 rounded-2xl border border-border bg-background/40 overflow-hidden">
-              <div className="px-4 py-3 border-b border-border">
-                <div className="text-sm font-medium text-foreground">Vídeo</div>
-                <div className="text-xs text-muted-foreground">Veja o passo a passo completo.</div>
-              </div>
-              <div className="aspect-video w-full bg-black">
-                <iframe
-                  className="w-full h-full"
-                  src="https://www.youtube.com/embed/2rgyPJzZXQg"
-                  title="Tutorial Conexões"
-                  loading="lazy"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            </div>
-          </div>)}
+          <ConversationsChatCard
+            collapsed={conversationsCollapsed}
+            onToggle={() => setConversationsCollapsed((v) => !v)}
+            onOpenPlansTab={onOpenPlansTab}
+          />
         </div>
 
-        <div className="rounded-3xl border border-border bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))]">
+        {/* Coluna direita (desktop): conexões */}
+        <div className="flex-1 space-y-6">
+          <div className="rounded-3xl border border-border bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))]">
           <div className="p-5 border-b border-border">
             <h2 className="text-lg font-semibold text-foreground">WhatsApp</h2>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -268,9 +272,9 @@ export default function ConnectionsPage({
               </div>
             )}
           </div>
-        </div>
+          </div>
 
-        <div className="rounded-3xl border border-border bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))]">
+          <div className="rounded-3xl border border-border bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))]">
           <div className="p-5 border-b border-border">
             <h2 className="text-lg font-semibold text-foreground">Instagram</h2>
             <p className="mt-1 text-xs text-muted-foreground">Conecte e gerencie seu canal de Direct.</p>
@@ -292,6 +296,7 @@ export default function ConnectionsPage({
                 </button>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </section>
