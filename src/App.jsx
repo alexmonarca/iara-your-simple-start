@@ -71,28 +71,37 @@ const isSubscriptionActive = (status) => {
     return ['active', 'completed', 'approved', 'paid', 'succeeded'].includes(s);
 };
 
-// Cálculo atualizado com desconto de Onboarding
-const calculateTotal = (data, extraChannels, extraUsers, couponDiscount = 0, onboardingDiscount = 0) => {
-    let total = 250; 
+const calculateSubtotal = (data, extraChannels, extraUsers) => {
+    let total = 250;
     if (!data) return total;
-    
+
     // Adicionais
     if (data.branches && data.branches.length > 0) total += (data.branches.length * 150);
     if (data.omnichannel) total += 150;
     if (data.integrate_agenda) total += 50;
     if (data.recognize_payments) total += 50;
     if (data.mass_sender_active) total += 150;
-if (data.use_official_api_coexistencia) total += 50;
+    if (data.use_official_api_coexistencia) total += 50;
     if (data.use_official_api_somente) total += 150;
     if (data.ia_gestor_midias) total += 250;
-    
+
     // Extras
     total += (extraChannels || 0) * 50;
-    total += (extraUsers || 0) * 50; 
-    
+    total += (extraUsers || 0) * 50;
+
+    return Math.max(0, Math.ceil(total));
+};
+
+// Cálculo atualizado com desconto de Onboarding
+const calculateTotal = (data, extraChannels, extraUsers, couponDiscount = 0, onboardingDiscount = 0) => {
+    const subtotal = calculateSubtotal(data, extraChannels, extraUsers);
+
+    // Cupom só funciona para contratações acima de R$ 250 (isto é, com adicionais)
+    const eligibleCouponDiscount = subtotal > 250 ? (couponDiscount || 0) : 0;
+
     // Aplica descontos
-    let totalDiscount = couponDiscount + onboardingDiscount;
-    total = total - totalDiscount;
+    const totalDiscount = eligibleCouponDiscount + (onboardingDiscount || 0);
+    const total = subtotal - totalDiscount;
 
     return Math.max(0, Math.ceil(total)); // Garante que não fique negativo
 };
@@ -505,7 +514,24 @@ function Dashboard({ session }) {
   }, [session]);
 
   const VALID_COUPONS = { 'IARA50': 50, 'PROMO100': 100, 'PARCEIRO': 150, 'MONARCA200': 200 };
-  const handleApplyCoupon = () => { const code = coupon.toUpperCase().trim(); if (VALID_COUPONS[code]) { setAppliedCoupon({ code, amount: VALID_COUPONS[code] }); setCouponError(''); } else { setAppliedCoupon(null); setCouponError('Cupom inválido ou expirado.'); } };
+  const handleApplyCoupon = () => {
+    const code = coupon.toUpperCase().trim();
+    if (!VALID_COUPONS[code]) {
+      setAppliedCoupon(null);
+      setCouponError('Cupom inválido ou expirado.');
+      return;
+    }
+
+    const subtotal = calculateSubtotal(gymData, extraChannels, gymData?.extra_users_count);
+    if (subtotal <= 250) {
+      setAppliedCoupon(null);
+      setCouponError('Cupom válido apenas para contratações acima de R$ 250. Adicione um adicional para aplicar.');
+      return;
+    }
+
+    setAppliedCoupon({ code, amount: VALID_COUPONS[code] });
+    setCouponError('');
+  };
 
   const [gymData, setGymData] = useState({ gym_name: "", phone: "", pix_key: "", address: "", branches: [], opening_hours: "", pricing_info: "", faq_text: "", tone_of_voice: "Motivador e energético.", observations: "", allow_calls: false, reply_groups: false, reply_audio: true, send_images: false, integrate_agenda: false, recognize_payments: false, omnichannel: false, connection_status: 'disconnected', logo_url: null, email: session.user.email, password: '', needs_reprocessing: true, ai_active: false, ai_active_instagram: false, test_number: '', mass_sender_active: false, mass_sender_sheet_link: '', mass_sender_days: '', mass_sender_hours: '', mass_sender_interval: '5min', use_official_api: false, extra_users_count: 0, instagram_status: 'disconnected' });
   const [initialGymData, setInitialGymData] = useState(null);
@@ -945,6 +971,7 @@ function Dashboard({ session }) {
             whatsappOfficialStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
             onWhatsAppDisconnect={handleLogout}
             onWhatsAppRestart={handleRestart}
+            logs={logs}
           />
         );
 
