@@ -48,6 +48,8 @@ export default function ConnectionsPage({
   wantsOfficialApi,
   onOpenPlansTab,
 
+  logs,
+
   // WhatsApp (MonarcaHub)
   onOpenWhatsAppConnectUnofficial,
   whatsappUnofficialStatus,
@@ -172,6 +174,7 @@ export default function ConnectionsPage({
             collapsed={conversationsCollapsed}
             onToggle={() => setConversationsCollapsed((v) => !v)}
             onOpenPlansTab={onOpenPlansTab}
+            logs={logs}
           />
         </div>
 
