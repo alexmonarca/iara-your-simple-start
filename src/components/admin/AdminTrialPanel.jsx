@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Save, Pencil, RefreshCw, Users } from "lucide-react";
+import { Save, Pencil, RefreshCw, Users, Trash2 } from "lucide-react";
 
 export default function AdminTrialPanel({ supabaseClient, adminEmail }) {
   const [userId, setUserId] = useState("");
@@ -65,6 +65,33 @@ export default function AdminTrialPanel({ supabaseClient, adminEmail }) {
       setTrialStartDate(local);
     } else {
       setTrialStartDate("");
+    }
+  };
+
+  const handleDelete = async (row) => {
+    if (!supabaseClient) return;
+    const ok = confirm(
+      `Excluir trial customizado do usuário?\n\nUser ID: ${row.user_id}`
+    );
+    if (!ok) return;
+
+    setSaving(true);
+    setError("");
+    try {
+      const { error: delErr } = await supabaseClient
+        .from("user_trial_settings")
+        .delete()
+        .eq("id", row.id);
+
+      if (delErr) throw delErr;
+      await loadList();
+
+      // Se eu estava editando esse usuário, limpa o form
+      if (editingUserId === row.user_id) resetForm();
+    } catch (e) {
+      setError(e?.message || "Erro ao excluir trial customizado.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -244,6 +271,17 @@ export default function AdminTrialPanel({ supabaseClient, adminEmail }) {
                     >
                       <Pencil className="w-4 h-4" />
                       Editar
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(row)}
+                      className="px-3 py-2 rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/20 border border-red-500/20 flex items-center gap-2 text-sm"
+                      disabled={saving}
+                      title="Excluir este trial"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Excluir
                     </button>
                   </div>
                 </div>
