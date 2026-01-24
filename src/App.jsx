@@ -548,7 +548,7 @@ function Dashboard({ session }) {
     try {
       // Força IA pausada no banco (n8n depende disso)
       setGymData(prev => ({ ...prev, ai_active: false }));
-      await handleSave({ ...gymData, ai_active: false });
+      await saveGymPatch({ ai_active: false });
 
       // (Opcional) se estiver conectado via MonarcaHub, desloga para garantir que não rode nada no trial expirado
       if (connectionStatus === 'connected') {
@@ -556,7 +556,7 @@ function Dashboard({ session }) {
         setConnectionStep('disconnected');
         setGymData(prev => ({ ...prev, connection_status: 'disconnected' }));
         await callEvolutionManager('logout');
-        await handleSave({ ...gymData, ai_active: false, connection_status: 'disconnected' });
+        await saveGymPatch({ ai_active: false, connection_status: 'disconnected' });
       }
     } catch (e) {
       console.error('Falha ao forçar pausa no trial expirado:', e);
@@ -651,8 +651,39 @@ function Dashboard({ session }) {
     checkEvolutionStatus();
   };
   const handleRestart = async () => { if(confirm("Reiniciar conexão?")) { await callEvolutionManager('restart'); alert("Reiniciando..."); } };
-  const handleLogout = async () => { if(confirm("Desconectar?")) { const res = await callEvolutionManager('logout'); if(res) { setConnectionStatus('disconnected'); setConnectionStep('disconnected'); handleSave({ ...gymData, connection_status: 'disconnected', ai_active: false }); alert("Desconectado."); } } };
-  const handleManualCheck = async () => { const res = await callEvolutionManager('status'); if(res && (res.status === 'open' || res.status === 'connected')) { setConnectionStatus('connected'); setConnectionStep('connected'); handleSave({ ...gymData, connection_status: 'connected' }); alert("Conectado! 🟢"); } else { setConnectionStatus('disconnected'); setConnectionStep('disconnected'); alert("Desconectado 🔴"); } };
+  const handleLogout = async () => {
+    if (confirm("Desconectar?")) {
+      const res = await callEvolutionManager('logout');
+      if (res) {
+        setConnectionStatus('disconnected');
+        setConnectionStep('disconnected');
+        try {
+          await saveGymPatch({ connection_status: 'disconnected', ai_active: false });
+        } catch (_e) {
+          // não travar UX por falha de persistência
+        }
+        alert("Desconectado.");
+      }
+    }
+  };
+
+  const handleManualCheck = async () => {
+    const res = await callEvolutionManager('status');
+    if (res && (res.status === 'open' || res.status === 'connected')) {
+      setConnectionStatus('connected');
+      setConnectionStep('connected');
+      try {
+        await saveGymPatch({ connection_status: 'connected' });
+      } catch (_e) {
+        // silencioso
+      }
+      alert("Conectado! 🟢");
+    } else {
+      setConnectionStatus('disconnected');
+      setConnectionStep('disconnected');
+      alert("Desconectado 🔴");
+    }
+  };
   const checkEvolutionStatus = async () => {
     try {
       const response = await fetch(WEBHOOK_EVOLUTION_URL, {
@@ -680,7 +711,11 @@ function Dashboard({ session }) {
         setConnectionStatus('connected');
         setConnectionStep('connected');
         if (isQrModalOpen) setTimeout(() => setIsQrModalOpen(false), 2000);
-        handleSave({ ...gymData, connection_status: 'connected' });
+        try {
+          await saveGymPatch({ connection_status: 'connected' });
+        } catch (_e) {
+          // silencioso
+        }
       }
     } catch (e) {
       // silencioso
@@ -780,7 +815,70 @@ function Dashboard({ session }) {
       fetchData(); 
   }, [userId, session.user.email]);
 
-  const handleSave = async (customData = null) => { const isFullSave = !customData; if (isFullSave) setIsSaving(true); const dataToSave = { user_id: userId, ...(customData || gymData), updated_at: new Date(), needs_reprocessing: true, extra_channels_count: extraChannels, extra_users_count: (customData || gymData).extra_users_count }; delete dataToSave.email; delete dataToSave.password; try { const { error } = await supabaseClient.from('gym_configs').upsert([dataToSave], { onConflict: 'user_id' }); if (error) throw error; if (isFullSave) { alert("Configurações salvas!"); createInstanceOnSave(); setInitialGymData(customData || gymData); } if (isFullSave) setTrainingError(''); } catch (error) { alert("Erro: " + error.message); } finally { if (isFullSave) setIsSaving(false); } };
+  // Evita que autosaves (status/IA/conexão) rodem antes do carregamento inicial do gym_configs.
+  const gymConfigReadyRef = useRef(false);
+  useEffect(() => {
+    // marcamos como pronto quando terminamos de carregar e já temos userId
+    if (!isLoadingData && userId) {
+      gymConfigReadyRef.current = true;
+    }
+  }, [isLoadingData, userId]);
+
+  // Salva somente um PATCH (não sobrescreve campos não enviados).
+  // Isso previne apagar "cérebro" do cliente quando algum evento automático dispara antes de carregar os dados.
+  const saveGymPatch = async (patch) => {
+    if (!userId) return;
+    // Se ainda não carregou o gym_configs, não faz autosave (senão pode mandar defaults vazios).
+    if (!gymConfigReadyRef.current) return;
+
+    const payload = {
+      user_id: userId,
+      ...patch,
+      updated_at: new Date(),
+    };
+
+    // Nunca persistir credenciais em gym_configs
+    delete payload.email;
+    delete payload.password;
+
+    const { error } = await supabaseClient
+      .from('gym_configs')
+      .upsert([payload], { onConflict: 'user_id' });
+    if (error) throw error;
+  };
+
+  const handleSave = async (customData = null) => {
+    const isFullSave = !customData;
+    if (isFullSave) setIsSaving(true);
+
+    const dataToSave = {
+      user_id: userId,
+      ...(customData || gymData),
+      updated_at: new Date(),
+      needs_reprocessing: true,
+      extra_channels_count: extraChannels,
+      extra_users_count: (customData || gymData).extra_users_count,
+    };
+    delete dataToSave.email;
+    delete dataToSave.password;
+
+    try {
+      const { error } = await supabaseClient
+        .from('gym_configs')
+        .upsert([dataToSave], { onConflict: 'user_id' });
+      if (error) throw error;
+      if (isFullSave) {
+        alert("Configurações salvas!");
+        createInstanceOnSave();
+        setInitialGymData(customData || gymData);
+      }
+      if (isFullSave) setTrainingError('');
+    } catch (error) {
+      alert("Erro: " + error.message);
+    } finally {
+      if (isFullSave) setIsSaving(false);
+    }
+  };
   const toggleAI = async () => {
     if (isTrialExpired) {
       setTrainingError('Seu teste grátis terminou. Faça upgrade para ativar a IA.');
@@ -807,9 +905,27 @@ function Dashboard({ session }) {
     setTrainingError('');
     const newState = !gymData.ai_active;
     setGymData(prev => ({ ...prev, ai_active: newState }));
-    await handleSave({ ...gymData, ai_active: newState });
+    try {
+      await saveGymPatch({ ai_active: newState });
+    } catch (_e) {
+      // silencioso
+    }
   };
-  const toggleInstagramAI = async () => { if (!gymData.ai_active_instagram && extraChannels < 1) { setInstagramError('Erro: Contrate Canal Extra na aba "Assinatura".'); setTimeout(() => setInstagramError(''), 5000); return; } setInstagramError(''); const newState = !gymData.ai_active_instagram; setGymData(prev => ({ ...prev, ai_active_instagram: newState })); await handleSave({ ...gymData, ai_active_instagram: newState }); };
+  const toggleInstagramAI = async () => {
+    if (!gymData.ai_active_instagram && extraChannels < 1) {
+      setInstagramError('Erro: Contrate Canal Extra na aba "Assinatura".');
+      setTimeout(() => setInstagramError(''), 5000);
+      return;
+    }
+    setInstagramError('');
+    const newState = !gymData.ai_active_instagram;
+    setGymData(prev => ({ ...prev, ai_active_instagram: newState }));
+    try {
+      await saveGymPatch({ ai_active_instagram: newState });
+    } catch (_e) {
+      // silencioso
+    }
+  };
   
   // CÁLCULO DE PREÇO (COM DESCONTO ONBOARDING)
   const totalPrice = calculateTotal(gymData, extraChannels, gymData.extra_users_count, appliedCoupon ? appliedCoupon.amount : 0, onboardingDiscount);
