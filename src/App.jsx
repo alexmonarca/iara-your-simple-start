@@ -533,7 +533,7 @@ function Dashboard({ session }) {
     setCouponError('');
   };
 
-  const [gymData, setGymData] = useState({ gym_name: "", phone: "", pix_key: "", address: "", branches: [], opening_hours: "", pricing_info: "", faq_text: "", tone_of_voice: "Motivador e energético.", observations: "", allow_calls: false, reply_groups: false, reply_audio: true, send_images: false, integrate_agenda: false, recognize_payments: false, omnichannel: false, connection_status: 'disconnected', logo_url: null, email: session.user.email, password: '', needs_reprocessing: true, ai_active: false, ai_active_instagram: false, test_number: '', mass_sender_active: false, mass_sender_sheet_link: '', mass_sender_days: '', mass_sender_hours: '', mass_sender_interval: '5min', use_official_api: false, extra_users_count: 0, instagram_status: 'disconnected' });
+  const [gymData, setGymData] = useState({ gym_name: "", phone: "", pix_key: "", address: "", branches: [], opening_hours: "", pricing_info: "", faq_text: "", tone_of_voice: "Motivador e energético.", observations: "", allow_calls: false, reply_groups: false, reply_audio: true, send_images: false, integrate_agenda: false, recognize_payments: false, omnichannel: false, connection_status: 'disconnected', logo_url: null, email: session.user.email, password: '', needs_reprocessing: true, ai_active: false, ai_active_instagram: false, test_number: '', mass_sender_active: false, mass_sender_sheet_link: '', mass_sender_contacts: '', mass_sender_message: '', mass_sender_days: '', mass_sender_hours: '', mass_sender_interval: '5min', use_official_api: false, extra_users_count: 0, instagram_status: 'disconnected' });
   const [initialGymData, setInitialGymData] = useState(null);
   const isTrialExpired = trialInfo.status === 'expired' && subscriptionInfo.plan_type === 'trial_7_days';
   const forcedTrialPauseRef = useRef(false);
@@ -847,6 +847,84 @@ function Dashboard({ session }) {
     if (error) throw error;
   };
 
+  const parseMassContacts = (raw) => {
+    // Aceita formatos por linha:
+    // - "Nome - 5511999998888"
+    // - "Nome;5511999998888"
+    // - "5511999998888" (sem nome)
+    const text = String(raw || "").trim();
+    if (!text) return [];
+
+    const lines = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(0, 500);
+
+    return lines
+      .map((line) => {
+        const parts = line.split(/\s*[-;|,]\s*/);
+        if (parts.length === 1) {
+          return { name: null, phone: parts[0] };
+        }
+        const name = parts.slice(0, -1).join(" - ").trim();
+        const phone = parts[parts.length - 1].trim();
+        return { name: name || null, phone };
+      })
+      .map((c) => ({
+        name: c.name,
+        // normaliza para dígitos apenas (ex: 55...)
+        phone: String(c.phone || "").replace(/\D/g, ""),
+      }))
+      .filter((c) => c.phone.length >= 10 && c.phone.length <= 15);
+  };
+
+  const fireRetentionMassWebhook = async (cfg) => {
+    try {
+      const webhookUrl = env?.retentionMassWebhookUrl;
+      if (!webhookUrl) return;
+
+      const contacts = parseMassContacts(cfg?.mass_sender_contacts);
+      const message = String(cfg?.mass_sender_message || "").trim();
+
+      // validações mínimas (client-side)
+      if (!cfg?.mass_sender_active) return;
+      if (contacts.length === 0) return;
+      if (message.length < 3) return;
+
+      const payload = {
+        event: "mass_sender_config_saved",
+        source: "iara_app",
+        user_id: userId,
+        email: session?.user?.email,
+        created_at: new Date().toISOString(),
+        config: {
+          days: String(cfg?.mass_sender_days || "").trim(),
+          hours: String(cfg?.mass_sender_hours || "").trim(),
+          interval: String(cfg?.mass_sender_interval || "").trim(),
+          message,
+          contacts,
+        },
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      await fetch(webhookUrl, {
+        method: "POST",
+        mode: "cors",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+    } catch (_e) {
+      // não travar UX se o webhook estiver fora
+    }
+  };
+
   const handleSave = async (customData = null) => {
     const isFullSave = !customData;
     if (isFullSave) setIsSaving(true);
@@ -868,6 +946,9 @@ function Dashboard({ session }) {
         .upsert([dataToSave], { onConflict: 'user_id' });
       if (error) throw error;
       if (isFullSave) {
+        // dispara webhook (fire-and-forget) quando o usuário salva a configuração
+        // (sem bloquear a UX e sem depender de Cloud)
+        fireRetentionMassWebhook(customData || gymData);
         alert("Configurações salvas!");
         createInstanceOnSave();
         setInitialGymData(customData || gymData);
@@ -1166,7 +1247,7 @@ function Dashboard({ session }) {
                 <h5 className="text-blue-200 font-bold text-sm mb-2">Defina a estratégia</h5>
                 <p className="text-blue-300/80 text-xs">Mantenha seu aluno interessado e motivado, envie mensagens em massa objetivas, você pode mandar dicas, lembretes, felicitação por conquistas, parabenizar em aniversários e até reativar alunos inadimplentes.</p>
               </div>
-              <div className={`bg-gray-900 border ${gymData.mass_sender_active ? 'border-blue-500/50 bg-blue-900/10' : 'border-gray-700'} rounded-xl p-4 mb-4 transition-all`}><CheckboxGroup icon={Send} label="Disparo de mensagens (+R$150)" subLabel="Configure o envio automático para sua lista." checked={gymData.mass_sender_active} onChange={(val) => setGymData({...gymData, mass_sender_active: val})} />{gymData.mass_sender_active && (<div className="mt-4 pl-2 border-l-2 border-blue-500/30 animate-in fade-in"><h5 className="text-sm font-bold text-blue-300 mb-3">Configuração do Disparador em Massa</h5><InputGroup label="Link da Planilha de Contatos" placeholder="Google Sheets (Modo Público)" value={gymData.mass_sender_sheet_link} onChange={(e) => setGymData({...gymData, mass_sender_sheet_link: e.target.value})} helpText="Cole aqui o link público da sua planilha." /><div className="grid grid-cols-2 gap-4"><InputGroup label="Dia(s) de disparo" placeholder="Ex: Seg, Qua, Sex" value={gymData.mass_sender_days} onChange={(e) => setGymData({...gymData, mass_sender_days: e.target.value})} /><InputGroup label="Horários dos disparos" placeholder="Ex: 09:00 - 18:00" value={gymData.mass_sender_hours} onChange={(e) => setGymData({...gymData, mass_sender_hours: e.target.value})} /></div><div className="mb-4"><label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-1.5">Intervalo de disparos</label><select className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-100 outline-none text-sm" value={gymData.mass_sender_interval} onChange={(e) => setGymData({...gymData, mass_sender_interval: e.target.value})}><option value="5min">Até ~150 pessoas/dia (a cada 5 min)</option><option value="3min">Até ~300 pessoas/dia (a cada 3 min)</option><option value="1min">1000 pessoas/dia (API Oficial Meta)</option></select></div><div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded text-xs text-yellow-200"><span className="font-bold block mb-1">Atenção:</span>Os disparos podem começar em até 24 horas após essa configuração, pois precisamos fazer ajuste manual. Chame no WhatsApp do Suporte para informar que atualizou sua planilha ou se desejar pausar os disparos fora da programação estabelecida.</div></div>)}</div></div></Card></div><div className="space-y-6"><div className="bg-gray-800 border border-gray-700 rounded-xl p-6 sticky top-6"><h3 className="text-lg font-semibold text-white mb-4">Resumo</h3><div className="space-y-3 mb-6 text-sm"><div className="flex justify-between"><span className="text-gray-400">Status Conexão</span><span className={connectionStep === 'connected' ? "text-green-400 font-bold" : "text-red-400 font-bold"}>{connectionStep === 'connected' ? 'Online' : 'Offline'}</span></div>{subscriptionInfo.plan_type === 'trial_7_days' ? (<div className="mt-3 pt-3 border-t border-gray-700"><p className="text-green-400 font-semibold text-xs mb-3 flex items-center gap-1"><Gift className="w-4 h-4"/> Incluso no Teste Grátis:</p><ul className="space-y-2 text-xs text-gray-300"><li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> 1 Agente de IA Treinado</li><li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> 1 Canal (Whats API MonarcaHub)</li><li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> 1 Usuário por dispositivo</li><li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> Suporte IA e manutenção</li></ul><p className="text-red-400 font-semibold text-xs mb-2 mt-4 flex items-center gap-1"><X className="w-4 h-4"/> Não incluso:</p><ul className="space-y-2 text-xs text-gray-500"><li className="flex items-center gap-2"><X className="w-4 h-4 text-red-500 flex-shrink-0"/> <span className="line-through">IA Gestão de mídias e Designer</span></li><li className="flex items-center gap-2"><X className="w-4 h-4 text-red-500 flex-shrink-0"/> <span className="line-through">Painel OmniChannel</span></li><li className="flex items-center gap-2"><X className="w-4 h-4 text-red-500 flex-shrink-0"/> <span className="line-through">API Oficial (coexistência)</span></li><li className="flex items-center gap-2"><X className="w-4 h-4 text-red-500 flex-shrink-0"/> <span className="line-through">Sistema de retenção de alunos</span></li><li className="flex items-center gap-2"><X className="w-4 h-4 text-red-500 flex-shrink-0"/> <span className="line-through">Suporte Prioritário no Whats</span></li></ul></div>) : (<div className="flex justify-between mt-2 pt-2 border-t border-gray-700"><span className="text-white font-bold">Total Estimado</span><span className="text-orange-400 font-bold">R$ {totalPrice}</span></div>)}</div><Button onClick={() => handleSave()} className="w-full bg-green-600 hover:bg-green-700 text-white border-none shadow-green-900/20">{isSaving ? 'Salvando...' : 'Salvar e Publicar IA'} <Save className="w-4 h-4 ml-2" /></Button><div className="mt-4 text-center text-xs text-orange-300 flex items-center justify-center gap-1"><Wifi className="w-3 h-3"/> Atualiza cérebro da IA</div></div></div></div>;
+              <div className={`bg-gray-900 border ${gymData.mass_sender_active ? 'border-blue-500/50 bg-blue-900/10' : 'border-gray-700'} rounded-xl p-4 mb-4 transition-all`}><CheckboxGroup icon={Send} label="Disparo de mensagens (+R$150)" subLabel="Configure o envio automático para sua lista." checked={gymData.mass_sender_active} onChange={(val) => setGymData({...gymData, mass_sender_active: val})} />{gymData.mass_sender_active && (<div className="mt-4 pl-2 border-l-2 border-blue-500/30 animate-in fade-in"><h5 className="text-sm font-bold text-blue-300 mb-3">Configuração do Disparador em Massa</h5><InputGroup label="Contatos (nome e telefone)" multiline placeholder={"Ex:\nJoão - 5511999998888\nMaria;5511988887777"} value={gymData.mass_sender_contacts} onChange={(e) => setGymData({...gymData, mass_sender_contacts: e.target.value})} helpText="Um contato por linha. Aceita: 'Nome - Telefone' ou 'Nome;Telefone'." /><InputGroup label="Mensagem / orientação enviada" multiline placeholder="Digite aqui a mensagem que será enviada aos contatos." value={gymData.mass_sender_message} onChange={(e) => setGymData({...gymData, mass_sender_message: e.target.value})} helpText="Use um texto curto e objetivo. Você pode ajustar depois e salvar novamente." /><div className="grid grid-cols-2 gap-4"><InputGroup label="Dia(s) de disparo" placeholder="Ex: Seg, Qua, Sex" value={gymData.mass_sender_days} onChange={(e) => setGymData({...gymData, mass_sender_days: e.target.value})} /><InputGroup label="Horários dos disparos" placeholder="Ex: 09:00 - 18:00" value={gymData.mass_sender_hours} onChange={(e) => setGymData({...gymData, mass_sender_hours: e.target.value})} /></div><div className="mb-4"><label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-1.5">Intervalo de disparos</label><select className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-100 outline-none text-sm" value={gymData.mass_sender_interval} onChange={(e) => setGymData({...gymData, mass_sender_interval: e.target.value})}><option value="5min">Até ~150 pessoas/dia (a cada 5 min)</option><option value="3min">Até ~300 pessoas/dia (a cada 3 min)</option><option value="1min">1000 pessoas/dia (API Oficial Meta)</option></select></div><div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded text-xs text-yellow-200"><span className="font-bold block mb-1">Atenção:</span>Os disparos podem começar em até 24 horas após essa configuração. Chame no WhatsApp do Suporte caso precise fazer ajuste manual ou se deseja pausar os disparos fora da programação estabelecida por exemplo. Estamos aqui para ajudar!</div></div>)}</div></div></Card></div><div className="space-y-6"><div className="bg-gray-800 border border-gray-700 rounded-xl p-6 sticky top-6"><h3 className="text-lg font-semibold text-white mb-4">Resumo</h3><div className="space-y-3 mb-6 text-sm"><div className="flex justify-between"><span className="text-gray-400">Status Conexão</span><span className={connectionStep === 'connected' ? "text-green-400 font-bold" : "text-red-400 font-bold"}>{connectionStep === 'connected' ? 'Online' : 'Offline'}</span></div>{subscriptionInfo.plan_type === 'trial_7_days' ? (<div className="mt-3 pt-3 border-t border-gray-700"><p className="text-green-400 font-semibold text-xs mb-3 flex items-center gap-1"><Gift className="w-4 h-4"/> Incluso no Teste Grátis:</p><ul className="space-y-2 text-xs text-gray-300"><li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> 1 Agente de IA Treinado</li><li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> 1 Canal (Whats API MonarcaHub)</li><li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> 1 Usuário por dispositivo</li><li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> Suporte IA e manutenção</li></ul><p className="text-red-400 font-semibold text-xs mb-2 mt-4 flex items-center gap-1"><X className="w-4 h-4"/> Não incluso:</p><ul className="space-y-2 text-xs text-gray-500"><li className="flex items-center gap-2"><X className="w-4 h-4 text-red-500 flex-shrink-0"/> <span className="line-through">IA Gestão de mídias e Designer</span></li><li className="flex items-center gap-2"><X className="w-4 h-4 text-red-500 flex-shrink-0"/> <span className="line-through">Painel OmniChannel</span></li><li className="flex items-center gap-2"><X className="w-4 h-4 text-red-500 flex-shrink-0"/> <span className="line-through">API Oficial (coexistência)</span></li><li className="flex items-center gap-2"><X className="w-4 h-4 text-red-500 flex-shrink-0"/> <span className="line-through">Sistema de retenção de alunos</span></li><li className="flex items-center gap-2"><X className="w-4 h-4 text-red-500 flex-shrink-0"/> <span className="line-through">Suporte Prioritário no Whats</span></li></ul></div>) : (<div className="flex justify-between mt-2 pt-2 border-t border-gray-700"><span className="text-white font-bold">Total Estimado</span><span className="text-orange-400 font-bold">R$ {totalPrice}</span></div>)}</div><Button onClick={() => handleSave()} className="w-full bg-green-600 hover:bg-green-700 text-white border-none shadow-green-900/20">{isSaving ? 'Salvando...' : 'Salvar e Publicar IA'} <Save className="w-4 h-4 ml-2" /></Button><div className="mt-4 text-center text-xs text-orange-300 flex items-center justify-center gap-1"><Wifi className="w-3 h-3"/> Atualiza cérebro da IA</div></div></div></div>;
       case 'plans': return <div className="max-w-4xl mx-auto animate-in fade-in"><div className="text-center mb-10"><h2 className="text-3xl font-bold text-white">Sua Assinatura</h2><p className="text-gray-400 mt-2">Confira o resumo e finalize seu plano.</p></div><div className="grid grid-cols-1 md:grid-cols-2 gap-8"><div className="bg-gray-800 border border-orange-500/30 rounded-2xl p-8 text-center h-fit"><p className="text-gray-400 text-sm uppercase tracking-wide">Total Mensal Estimado</p><div className="flex items-center justify-center text-white mt-2"><span className="text-5xl font-bold tracking-tight">R$ {totalPrice}</span></div>
       {/* LISTA DE INCLUSOS NO PLANO BASE */}
       <ul className="mt-4 space-y-2 text-xs text-gray-400 border-t border-gray-700 pt-4 mb-4 text-left">
