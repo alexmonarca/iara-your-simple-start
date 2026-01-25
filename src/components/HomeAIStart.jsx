@@ -8,8 +8,11 @@ import {
   Trash2,
   ChevronDown,
   ArrowUpRight,
+  MessageCircle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+
+import OmnichannelPreviewModal from "@/components/home/OmnichannelPreviewModal";
 
 /**
  * Primeira tela (estilo Gemini/Lovable): pergunta + input central.
@@ -22,6 +25,8 @@ export default function HomeAIStart({
   onOpenPlansTab,
   onOpenConnectionsTab,
   planName,
+
+  logs,
 
   // WhatsApp status (para validar ativação da IA)
   whatsappUnofficialStatus,
@@ -45,6 +50,7 @@ export default function HomeAIStart({
   const [aiStatusHint, setAiStatusHint] = useState("");
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [omnichannelOpen, setOmnichannelOpen] = useState(false);
 
   // Histórico minimizado por padrão (para parecer um “chat novo” ao abrir)
   const [historyMinimized, setHistoryMinimized] = useState(false);
@@ -348,6 +354,9 @@ export default function HomeAIStart({
     // níveis: Trial < Start < Premium
     return "trial";
   }, [planName]);
+
+  // Mostrar upsell apenas para trial/base/start (para planos superiores, assumimos contratado)
+  const shouldShowOmnichannelPreview = planTier !== "premium";
 
   const availableModels = useMemo(() => {
     if (planTier === "premium") return ["Trial", "Start", "Premium"];
@@ -760,6 +769,42 @@ export default function HomeAIStart({
             {/* Observação: mensagens técnicas de deploy (Vercel/env) não devem aparecer para o usuário final */}
           </div>
         </div>
+
+        {/* Mini banner (fora do bloco do chat) */}
+        {shouldShowOmnichannelPreview && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setOmnichannelOpen(true)}
+              className="w-full text-left rounded-3xl border border-border bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_0_0_1px_hsl(var(--border))] p-4 hover:bg-card/70 transition-colors"
+              aria-label="Chat — ver últimas conversas"
+            >
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-2xl border border-border bg-background/40 inline-flex items-center justify-center flex-shrink-0">
+                  <MessageCircle className="w-5 h-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-foreground">Chat — ver últimas conversas</div>
+                  <div className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                    Abra uma prévia do Painel Omnichannel para ver as últimas conversas e recursos avançados.
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground underline underline-offset-4 mt-1">Abrir</div>
+              </div>
+            </button>
+          </div>
+        )}
+
+        <OmnichannelPreviewModal
+          open={omnichannelOpen}
+          onClose={() => setOmnichannelOpen(false)}
+          onUpgrade={() => {
+            setOmnichannelOpen(false);
+            if (onOpenPlansTab) onOpenPlansTab();
+          }}
+          logs={logs}
+          locked
+        />
 
         {isUpgradeModalOpen && (
           <div

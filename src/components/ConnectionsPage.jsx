@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 
 import CollapsibleCard from "./connections/CollapsibleCard";
-import ConversationsChatCard from "./connections/ConversationsChatCard";
 
 function StatusBadge({ connected, labelConnected = "Online", labelDisconnected = "Offline" }) {
   return (
@@ -48,8 +47,6 @@ export default function ConnectionsPage({
   wantsOfficialApi,
   onOpenPlansTab,
 
-  logs,
-
   // WhatsApp (MonarcaHub)
   onOpenWhatsAppConnectUnofficial,
   whatsappUnofficialStatus,
@@ -64,7 +61,6 @@ export default function ConnectionsPage({
 }) {
   const [showAlreadyConnected, setShowAlreadyConnected] = useState(false);
   const [tutorialCollapsed, setTutorialCollapsed] = useState(false);
-  const [conversationsCollapsed, setConversationsCollapsed] = useState(false);
 
   const whatsappUnofficialConnected = (whatsappUnofficialStatus ?? "disconnected") === "connected";
   const whatsappOfficialConnected = (whatsappOfficialStatus ?? "disconnected") === "connected";
@@ -169,13 +165,6 @@ export default function ConnectionsPage({
               </div>
             </div>
           </CollapsibleCard>
-
-          <ConversationsChatCard
-            collapsed={conversationsCollapsed}
-            onToggle={() => setConversationsCollapsed((v) => !v)}
-            onOpenPlansTab={onOpenPlansTab}
-            logs={logs}
-          />
         </div>
 
         {/* Coluna direita (desktop): conexões */}
