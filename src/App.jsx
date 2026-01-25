@@ -1176,6 +1176,8 @@ function Dashboard({ session }) {
             isTrialPlan={displayPlanName === 'Trial Grátis' || subscriptionInfo?.plan_type === 'trial_7_days'}
             wantsOfficialApi={Boolean(gymData.use_official_api_coexistencia || gymData.use_official_api_somente)}
             onOpenPlansTab={() => setActiveTab('plans')}
+
+            extraChannels={extraChannels}
             onOpenWhatsAppConnectUnofficial={handleConnectNewNumber}
             whatsappUnofficialStatus={connectionStatus}
             onOpenWhatsAppConnectOfficial={handleMetaEmbeddedSignup}

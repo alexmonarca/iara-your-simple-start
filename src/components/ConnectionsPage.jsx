@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Unplug,
   Instagram as InstagramIcon,
+  Lock,
 } from "lucide-react";
 
 import CollapsibleCard from "./connections/CollapsibleCard";
@@ -47,6 +48,9 @@ export default function ConnectionsPage({
   wantsOfficialApi,
   onOpenPlansTab,
 
+  // Add-on: Canais Extras
+  extraChannels,
+
   // WhatsApp (MonarcaHub)
   onOpenWhatsAppConnectUnofficial,
   whatsappUnofficialStatus,
@@ -83,6 +87,8 @@ export default function ConnectionsPage({
   const openInstagramConnect = () => {
     onOpenWhatsAppConnectOfficial?.();
   };
+
+  const instagramLocked = (extraChannels ?? 0) < 1;
 
   const checklist = useMemo(() => {
     const steps = [];
@@ -277,15 +283,37 @@ export default function ConnectionsPage({
                 <div className="flex items-center gap-2">
                   <InstagramIcon className="w-4 h-4 text-primary" />
                   <div className="text-sm font-medium text-foreground">Instagram API (Meta)</div>
+                  {instagramLocked ? (
+                    <Lock
+                      className="w-4 h-4 text-muted-foreground"
+                      aria-label="Bloqueado: requer Canal Extra"
+                      title="Bloqueado: contrate Canal Extra em Assinatura → Adicionais → Canais Extras"
+                    />
+                  ) : null}
                 </div>
                 <StatusBadge connected={false} />
               </div>
               <div className="mt-2 text-xs text-muted-foreground leading-relaxed">Conecte o Instagram via API Oficial da Meta para gerenciar mensagens diretas.</div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" onClick={openInstagramConnect} className="h-10 px-4 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2">
-                  Conectar Instagram
-                  <RefreshCw className="w-4 h-4 opacity-70" />
-                </button>
+                {instagramLocked ? (
+                  <button
+                    type="button"
+                    onClick={onOpenPlansTab}
+                    className="h-10 px-4 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
+                  >
+                    Desbloquear (Canal Extra)
+                    <Lock className="w-4 h-4 opacity-70" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openInstagramConnect}
+                    className="h-10 px-4 rounded-full border border-border bg-background/40 text-foreground hover:bg-background/60 transition-colors text-sm inline-flex items-center gap-2"
+                  >
+                    Conectar Instagram
+                    <RefreshCw className="w-4 h-4 opacity-70" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
