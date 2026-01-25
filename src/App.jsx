@@ -1154,6 +1154,7 @@ function Dashboard({ session }) {
               webhookUrl={env.n8nAiWebhookUrl}
               planName={displayPlanName === 'Trial Grátis' ? 'Plano GRATUITO' : displayPlanName}
               trialExpired={subscriptionInfo?.plan_type === 'trial_7_days' && trialInfo?.status === 'expired'}
+              logs={logs}
               isTrialPlan={displayPlanName === 'Trial Grátis' || subscriptionInfo?.plan_type === 'trial_7_days'}
               wantsOfficialApi={Boolean(gymData.use_official_api_coexistencia || gymData.use_official_api_somente)}
               onOpenPlansTab={() => setActiveTab('plans')}
@@ -1181,7 +1182,6 @@ function Dashboard({ session }) {
             whatsappOfficialStatus={gymData.use_official_api ? 'connected' : 'disconnected'}
             onWhatsAppDisconnect={handleLogout}
             onWhatsAppRestart={handleRestart}
-            logs={logs}
           />
         );
 
